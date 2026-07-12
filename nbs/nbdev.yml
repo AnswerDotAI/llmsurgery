@@ -1,0 +1,14 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "llmsurgery"
+  site-url: "https://AnswerDotAI.github.io/llmsurgery"
+  description: "LLM Surgery"
+  repo-branch: main
+  repo-url: "https://github.com/AnswerDotAI/llmsurgery"
+
+format-links:
+  - html
+  - format: commonmark
+    text: Markdown

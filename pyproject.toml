@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmsurgery"
+dynamic = ["version"]
+description = "LLM Surgery"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Jeremy Howard", email = "info@fast.ai"}]
+keywords = ['nbdev']
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/AnswerDotAI/llmsurgery"
+Documentation = "https://AnswerDotAI.github.io/llmsurgery/"
+
+[project.entry-points.nbdev]
+llmsurgery = "llmsurgery._modidx:d"
+
+[tool.setuptools.dynamic]
+version = {attr = "llmsurgery.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["llmsurgery"]
+
+[tool.nbdev]
