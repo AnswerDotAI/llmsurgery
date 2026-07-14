@@ -115,7 +115,7 @@ def cell2msg(self:Dialog, cell):
     kwargs = {a: meta.pop(k) for a,k in self.msg_cls.meta_attrs.items() if k in meta}
     content, reply = split_cell_src(cell)
     msg_type = sprompt if meta.pop('solveit_ai', 0) else snote if cell.cell_type=='markdown' else cell.cell_type
-    output = ('' if msg_type in (snote,sraw)
+    output = ('' if msg_type in (snote,sraw)  # chkstyle: ignore
         else _output_from_cell(cell) if msg_type == scode
         else prompt_output(reply) if reply else [])
     atts = [dict2att(att_id, att_data) for att_id, att_data in cell.get('attachments', {}).items()]

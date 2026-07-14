@@ -6,9 +6,9 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 
 # %% auto #0
 __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'canon', 'stable_uuid', 'mk_rec', 'save_sess',
-           'msgs2recs', 'mk_tu', 'mk_tr', 'tool_turn', 'load_sess', 'sess_thread', 'rec_txt', 'conv_recs', 'rec_role',
-           'SessHits', 'sess_search', 'show_recs', 'strip_think', 'trunc_tools', 'reid_recs', 'fork_sess', 'dlg2msgs',
-           'dlg2sess', 'recs2msgs', 'msgs2dlg', 'sess2dlg']
+           'append_sess', 'msgs2recs', 'mk_tu', 'mk_tr', 'tool_turn', 'load_sess', 'sess_thread', 'rec_txt',
+           'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'strip_think', 'trunc_tools', 'reid_recs',
+           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2msgs', 'msgs2dlg', 'sess2dlg']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import base64, json, os, re, uuid
@@ -112,6 +112,23 @@ def save_sess(
     f = sess_file(sid, cwd or '.')
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(''.join(json.dumps(r)+'\n' for r in recs))
+    return sid
+
+# %% ../nbs/03_ant.ipynb #c161a097
+def append_sess(
+    recs, # Records to append, e.g. a munged template round
+    sid=None, # Session to append to; `cur_sess()` if None
+    cwd=None, # Project directory; the current directory if None
+    ts=None, # If given, stamp each appended record's timestamp: True for the current time, or an ISO8601 string
+):
+    "Chain `recs` onto the tail of session `sid` and append them to its transcript, returning `sid`"
+    sid = sid or cur_sess(cwd)
+    prev = last(load_sess(sid, cwd))['uuid']
+    for r in recs:
+        r['sessionId'],r['parentUuid'],prev = sid,prev,r['uuid']
+        if ts: r['timestamp'] = _now() if ts is True else ts
+        if 'session_id' in r: r['session_id'] = sid
+    with sess_file(sid, cwd).open('a') as f: f.writelines(json.dumps(r)+'\n' for r in recs)
     return sid
 
 # %% ../nbs/03_ant.ipynb #53b019df

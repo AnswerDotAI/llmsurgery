@@ -29,7 +29,7 @@ def join_out(d):
     "Join Jupyter's list-of-lines output data into one string"
     return ''.join(d) if isinstance(d, list) else d
 
-AI_RENDERERS = {
+AI_RENDERERS = {  # chkstyle: ignore-node
     'text/plain': lambda d: strip_ansi(str(d)),
     'text/html': join_out,
     'text/markdown': join_out,

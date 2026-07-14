@@ -251,8 +251,7 @@ def get_output_mds(output):
     "Extract text/markdown content from code outputs (display_data and execute_result)"
     if not output: return []
     return [o['data']['text/markdown'] for o in output
-        if o.get('output_type') in ('display_data', 'execute_result')
-        and 'text/markdown' in o.get('data', {})]
+        if o.get('output_type') in ('display_data', 'execute_result') and 'text/markdown' in o.get('data', {})]
 
 # %% ../nbs/00_dialog.ipynb #1c03c386
 def ruuid4():
