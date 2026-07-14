@@ -123,7 +123,7 @@ def append_sess(
 ):
     "Chain `recs` onto the tail of session `sid` and append them to its transcript, returning `sid`"
     sid = sid or cur_sess(cwd)
-    prev = last(load_sess(sid, cwd))['uuid']
+    prev = last(r['uuid'] for r in load_sess(sid, cwd) if 'uuid' in r)
     for r in recs:
         r['sessionId'],r['parentUuid'],prev = sid,prev,r['uuid']
         if ts: r['timestamp'] = _now() if ts is True else ts
