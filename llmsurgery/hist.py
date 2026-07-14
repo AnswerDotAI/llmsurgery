@@ -37,6 +37,7 @@ AI_RENDERERS = {
     'application/javascript': lambda d: f'<script>{join_out(d)}</script>',
 }
 
+# %% ../nbs/02_hist.ipynb #8885dfcc
 def render_output_ai(out, renderers=None):
     "Plain-text rendering of one Jupyter output, as the AI sees it; `renderers` overrides/extends the per-mime table"
     r = AI_RENDERERS if renderers is None else AI_RENDERERS|renderers
@@ -128,6 +129,7 @@ class _MissError(Exception): pass
 UNSUPPORTED_MSG = "An unsupported media type was included in the context: {mime}. Please instruct the user to switch to a model that supports this media type."
 Message.UNSUPPORTED_MSG = UNSUPPORTED_MSG
 
+# %% ../nbs/02_hist.ipynb #8fde0964
 def _media_xml(media_type, media_id, mime=None):
     "Create a media XML tag for LLM context."
     return to_xml(Media(id=media_id, type=media_type, mime=mime))
@@ -178,15 +180,15 @@ def _img_id(im_bytes):
     return base64.b32encode(h.digest()).decode('utf-8')[:8]
 
 # %% ../nbs/02_hist.ipynb #4c3989db
-def _img_output(m, aim_info, max_im_sz):
-    "Extract any image outputs from `m` and return a list of encoded images and their xml tags."
-    outs = []
-    for o in m.output or []:
-        for mime, data in o.get('data', {}).items():
-            if mime in {'image/jpeg', 'image/png'}:
-                outs += media_item('output', _img_id, lambda data=data: base64.b64decode(data), aim_info, mime,
-                    max_im_sz, prep=m.prep_img, unavail_msg=m.UNSUPPORTED_MSG)
-    return outs
+# def _img_output(m, aim_info, max_im_sz):
+#     "Extract any image outputs from `m` and return a list of encoded images and their xml tags."
+#     outs = []
+#     for o in m.output or []:
+#         for mime, data in o.get('data', {}).items():
+#             if mime in {'image/jpeg', 'image/png'}:
+#                 outs += media_item('output', _img_id, lambda data=data: base64.b64decode(data), aim_info, mime,
+#                     max_im_sz, prep=m.prep_img, unavail_msg=m.UNSUPPORTED_MSG)
+#     return outs
 
 # %% ../nbs/02_hist.ipynb #04616fe6
 @patch
@@ -232,7 +234,7 @@ def to_parts(self:Message, aim_info:dict, last=False):
     if mxml := self.to_xml(last): parts.append(mxml)
     return parts
 
-# %% ../nbs/02_hist.ipynb #d96837fc
+# %% ../nbs/02_hist.ipynb #0b6318f6
 def msgs2hist(msgs:list[Message], aim_info:dict):
     "Convert messages to LLM history. `msgs` must end with a prompt, which renders with `last=True`."
     if msgs[-1].msg_type != sprompt: raise ValueError("msgs2hist requires msgs to end with a prompt")
@@ -242,25 +244,26 @@ def msgs2hist(msgs:list[Message], aim_info:dict):
         else: res[-1] = m.to_parts(aim_info) + res[-1]
     return res[::-1]
 
-# %% ../nbs/02_hist.ipynb #7b2645d5
+# %% ../nbs/02_hist.ipynb #22d1bb97
+def _explode(a, t):
+    "One call/result pair per tool use in a batched assistant/tool pair"
+    tus = [p for p in a.content if p.type==PartType.tool_use]
+    if len(tus)<2: return [a,t]
+    pre,trs = [p for p in a.content if p.type!=PartType.tool_use],{p.data['id']:p for p in t.content}
+    res = []
+    for is_first,tu in loop_first(tus):
+        res += [Msg(role='assistant', content=(pre if is_first else [])+[tu]), Msg(role='tool', content=[trs[tu.data['id']]])]
+    return res
+
 def _seq_tools(msgs):
     "Explode batched tool calls into strict call/result alternation"
     out = []
     for m in msgs:
-        if m.role=='tool' and out and out[-1].role=='assistant':
-            a = out.pop()
-            tus = [p for p in a.content if p.type==PartType.tool_use]
-            if len(tus)>1:
-                pre,trs = [p for p in a.content if p.type!=PartType.tool_use],{p.data['id']:p for p in m.content}
-                for tu in tus:
-                    out.append(Msg(role='assistant', content=pre+[tu]))
-                    out.append(Msg(role='tool', content=[trs[tu.data['id']]]))
-                    pre = []
-                continue
-            out.append(a)
-        out.append(m)
+        if m.role=='tool' and out and out[-1].role=='assistant': out += _explode(out.pop(), m)
+        else: out.append(m)
     return out
 
+# %% ../nbs/02_hist.ipynb #4eccdf09
 def dlg2canon(
     dlg, # A `Dialog`, ending with a prompt
     aim_info=None, # Model capability dict for media handling; images enabled if None

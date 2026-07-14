@@ -36,8 +36,7 @@ class Dialog(BasicRepr):
         name, # Dialog name, usually the file stem
         messages=None, # Initial `Message`s
         meta=None, # Notebook-level metadata dict, carried verbatim through save/load
-    ):
-        self.name,self.messages,self.meta = str(name),listify(messages),dict(meta or {})
+    ): self.name,self.messages,self.meta = str(name),listify(messages),dict(meta or {})
 
     def _repr_markdown_(self):
         msgs = ''
@@ -81,6 +80,7 @@ class Message:
         meta=None, # Remaining cell metadata, carried verbatim through save/load
         **xtras, # Extra attributes to store as-is
     ):
+        "An ipynb cell, or Solveit message (which adds the `prompt` type)"
         # Prepend `_` to ensure it is a valid DOM id too
         if id is None: id = '_'+rtoken_hex(4)
         attachments = listify(attachments)
@@ -143,6 +143,7 @@ class Message:
     def summ(self): return self.content + (f" ⇒ {self.output}" if self.output else '')
     __repr__ = basic_repr('id,content,output,msg_type')
 
+# %% ../nbs/00_dialog.ipynb #135858d9
 add_id_hash(Message, 'id')
 Dialog.msg_cls = Message
 

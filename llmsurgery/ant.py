@@ -70,6 +70,7 @@ def _est_toks(o):
     "Rule-of-thumb token estimate for every string in `o`: words * 1.5"
     return int(sum(len(s.split()) for s in _txts(o))*1.5)
 
+# %% ../nbs/03_ant.ipynb #9da9f61e
 def mk_rec(
     role, # 'user' or 'assistant'
     content, # A string, or a list of content blocks
@@ -377,7 +378,7 @@ def msgs2dlg(
     msgs, # Canonical messages, e.g. from `recs2msgs`
     name, # Dialog name
     cls=Dialog, # Dialog class to create
-    mx=2000, # Maximum characters per rendered tool input/output string (see `hist2fmt`)
+    mx=2000, # Maximum characters per rendered tool input/output string; None disables truncation (see `hist2fmt`)
 ):
     "A dialog for `msgs`: one prompt per user turn, replies rendered in the format `fmt2hist` parses"
     dlg,turns = cls(name),[]
@@ -402,7 +403,7 @@ def sess2dlg(
     sid=None, # Session id; `cur_sess()` if None
     cwd=None, # Project directory; passed to `sess_file` via `load_sess`
     name=None, # Dialog name; the session id if None
-    mx=2000, # Maximum characters per rendered tool input/output string (see `hist2fmt`)
+    mx=2000, # Maximum characters per rendered tool input/output string; None disables truncation (see `hist2fmt`)
 ):
     "The conversation of session `sid` as a dialog, one prompt per user turn"
     recs = strip_think(sess_thread(load_sess(sid, cwd)))
