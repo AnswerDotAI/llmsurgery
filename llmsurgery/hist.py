@@ -179,16 +179,15 @@ def _img_id(im_bytes):
     h = hashlib.md5(im_bytes)
     return base64.b32encode(h.digest()).decode('utf-8')[:8]
 
-# %% ../nbs/02_hist.ipynb #4c3989db
-# def _img_output(m, aim_info, max_im_sz):
-#     "Extract any image outputs from `m` and return a list of encoded images and their xml tags."
-#     outs = []
-#     for o in m.output or []:
-#         for mime, data in o.get('data', {}).items():
-#             if mime in {'image/jpeg', 'image/png'}:
-#                 outs += media_item('output', _img_id, lambda data=data: base64.b64decode(data), aim_info, mime,
-#                     max_im_sz, prep=m.prep_img, unavail_msg=m.UNSUPPORTED_MSG)
-#     return outs
+# %% ../nbs/02_hist.ipynb #08035646
+def _img_item(pair, m, aim_info, max_im_sz):
+    mime,data = pair
+    return media_item('output', _img_id, partial(base64.b64decode, data), aim_info, mime, max_im_sz, prep=m.prep_img, unavail_msg=m.UNSUPPORTED_MSG)
+    
+def _img_output(m, aim_info, max_im_sz):
+    "Extract any image outputs from `m` and return a list of encoded images and their xml tags."
+    pairs = L(m.output or []).attrgot('data', {}).flatmap(dict.items).filter(lambda p: p[0] in {'image/jpeg','image/png'})
+    return pairs.flatmap(_img_item, m=m, aim_info=aim_info, max_im_sz=max_im_sz)
 
 # %% ../nbs/02_hist.ipynb #04616fe6
 @patch
