@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = []
+dependencies = ['fastcore>=2.0.5', 'python-fastllm>=0.0.28']
 
 [project.urls]
 Repository = "https://github.com/AnswerDotAI/llmsurgery"
