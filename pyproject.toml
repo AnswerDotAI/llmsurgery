@@ -15,7 +15,10 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = ['fastcore>=2.0.5', 'python-fastllm>=0.0.28']
+dependencies = ['fastcore>=2.1.1', 'python-fastllm>=0.0.28']
+
+[project.optional-dependencies]
+dev = ['exhash']
 
 [project.urls]
 Repository = "https://github.com/AnswerDotAI/llmsurgery"
@@ -23,6 +26,9 @@ Documentation = "https://AnswerDotAI.github.io/llmsurgery/"
 
 [project.entry-points.nbdev]
 llmsurgery = "llmsurgery._modidx:d"
+
+[project.entry-points.pyskills]
+"llmsurgery.dlgskill" = "llmsurgery.dlgskill"
 
 [tool.setuptools.dynamic]
 version = {attr = "llmsurgery.__version__"}

@@ -80,8 +80,10 @@ def get_ipynb(dlg:Dialog, version=2, msgs=None):
 def write_ipynb(dlg:Dialog, fname=None, version=2, msgs=None, **kwargs):
     "Write `dlg` as a notebook, or return the JSON string if `fname` is None; `kwargs` (e.g. `uid`/`gid`) pass to `atomic_save`"
     nb = get_ipynb(dlg, version=version, msgs=msgs)
-    if not fname: return nbformat.writes(nb, indent=2)
-    with atomic_save(Path(fname), mode='w', encoding='utf-8', **kwargs) as f: nbformat.write(nb, f)
+    res = nbformat.writes(nb, indent=2)
+    if not res.endswith('\n'): res += '\n'
+    if not fname: return res
+    with atomic_save(Path(fname), mode='w', encoding='utf-8', **kwargs) as f: f.write(res)
 
 # %% ../nbs/01_ipynb.ipynb #5527e596
 @patch
@@ -125,7 +127,7 @@ def cell2msg(self:Dialog, cell):
 # %% ../nbs/01_ipynb.ipynb #aef05275
 @patch
 def from_cells(self:Dialog, cells):
-    self.messages = L(cells).map(self.cell2msg)
+    self.messages = Msgs(cells).map(self.cell2msg)
     return self
 
 def read_ipynb(fname, cls=Dialog, name=None):
@@ -135,4 +137,14 @@ def read_ipynb(fname, cls=Dialog, name=None):
     if not f.exists(): return print(f,'does not exist')
     try: nb = nbformat.read(f, as_version=nbformat.NO_CONVERT)
     except (NotJSONError, nbformat.ValidationError, PermissionError): return
-    return cls(name or f.stem, meta=dict(nb.get('metadata', {}))).from_cells(nb.cells)
+    res = cls(name or f.stem, meta=dict(nb.get('metadata', {}))).from_cells(nb.cells)
+    res.path_ = f
+    return res
+
+# %% ../nbs/01_ipynb.ipynb #87786976
+@patch
+def save(self:Dialog, fname=None):
+    "Write back to `fname`, or to the `path_` stamped by `read_ipynb`"
+    fname = fname or getattr(self, 'path_', None)
+    if not fname: raise ValueError('no fname passed, and no `path_` stamped by read_ipynb')
+    write_ipynb(self, fname)
