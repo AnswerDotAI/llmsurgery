@@ -233,17 +233,17 @@ def _atts_for(content, att_map):
 def split_msg(
     id, # Message or id to split
     *linenos:int, # Split before each of these 1-based lines
-    parts:list=None, # Explicit content pieces (e.g. from editor cursors), instead of `linenos`
     dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
-    "Split a message into pieces (returned as `Msgs`; the first keeps its id): `meta_attrs` fields and a leading `#| export` copy to every piece, attachments follow their references, and unreferenced ones stay on the first piece"
-    if linenos and parts is not None: raise ValueError('Pass linenos or parts, not both')
+    "Split a message into pieces (returned as `Msgs`; the first keeps its id): one `'\\n\\n'` is absorbed at each cut (so `merge_msgs` restores blank-line-separated content byte-exactly), `meta_attrs` fields and a leading `#| export` copy to every piece, attachments follow their references, and unreferenced ones stay on the first piece"
     d, sv = _load_dlg(dlg)
     m = d.msg(id)
-    if parts is None:
-        lines = m.content.splitlines()
-        cuts = [0, *[l-1 for l in linenos], len(lines)]
-        parts = ['\n'.join(lines[a:b]) for a,b in zip(cuts, cuts[1:])]
+    lines = m.content.splitlines()
+    cuts = [0, *[l-1 for l in linenos], len(lines)]
+    parts = ['\n'.join(lines[a:b]) for a,b in zip(cuts, cuts[1:])]
+    for i in range(len(parts)-1):  # each cut absorbs the '\n\n' that a later merge re-inserts
+        if   parts[i].endswith('\n'):     parts[i] = parts[i][:-1]
+        elif parts[i+1].startswith('\n'): parts[i+1] = parts[i+1][1:]
     exp = re.match(r'#\|\s*exports?[^\n]*\n', m.content)
     keep = {a: getattr(m, a) for a in m.meta_attrs if hasattr(m, a)}
     att_map = {a.id: a for a in m.attachments}
