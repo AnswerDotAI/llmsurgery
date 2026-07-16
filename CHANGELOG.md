@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.3
+
+### New Features
+
+- `split_msg`: drop `parts` param and absorb one `\n\n` at each cut for byte-exact merge round-trip ([#5](https://github.com/AnswerDotAI/llmsurgery/issues/5))
+
+
 ## 0.0.2
 
 ### New Features
