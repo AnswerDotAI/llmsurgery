@@ -62,7 +62,7 @@ def to_cell(self:Message, version=2):
         outkw['outputs'] = [nbformat.from_dict(_clean_out_meta(o)) for o in outputs]
     atts = {att.id: att2dict(att) for att in (self.attachments or [])}
     if atts and self.msg_type in (sprompt,snote): outkw['attachments'] = atts
-    id_ = self.id[1:]
+    id_ = self.id
     try: return f(cts, id=id_, metadata=meta, **outkw)
     except NotebookValidationError as e:
         print(f"NB validation err: {e}")
@@ -83,16 +83,16 @@ def write_ipynb(dlg:Dialog, fname=None, version=2, msgs=None, **kwargs):
     res = nbformat.writes(nb, indent=2)
     if not res.endswith('\n'): res += '\n'
     if not fname: return res
-    with atomic_save(Path(fname), mode='w', encoding='utf-8', **kwargs) as f: f.write(res)
+    with atomic_save(Path(fname).expanduser(), mode='w', encoding='utf-8', **kwargs) as f: f.write(res)
 
 # %% ../nbs/01_ipynb.ipynb #5527e596
 @patch
 def write(self:Dialog, base_path, version=2, msgs=None, **kwargs):
-    write_ipynb(self, Path(base_path)/f'{self.name}.ipynb', version=version, msgs=msgs, **kwargs)
+    write_ipynb(self, Path(base_path).expanduser()/f'{self.name}.ipynb', version=version, msgs=msgs, **kwargs)
 
 # %% ../nbs/01_ipynb.ipynb #0e16e93a
 def ipynb_cells(path, nm, prefix=None, suffix=None):
-    tmpl = path/f'{nm}.ipynb'
+    tmpl = Path(path).expanduser()/f'{nm}.ipynb'
     if not tmpl.exists(): return []
     try: cells = nbformat.read(tmpl, as_version=nbformat.NO_CONVERT).cells
     except NotJSONError: return []
@@ -121,7 +121,7 @@ def cell2msg(self:Dialog, cell):
         else _output_from_cell(cell) if msg_type == scode
         else prompt_output(reply) if reply else [])
     atts = [dict2att(att_id, att_data) for att_id, att_data in cell.get('attachments', {}).items()]
-    id = '_' + (getattr(cell, 'id', None) or rtoken_hex(4))
+    id = getattr(cell, 'id', None) or rtoken_hex(4)
     return self.msg_cls(content, id=id, output=output, msg_type=msg_type, dlg=self, attachments=atts, meta=meta, **kwargs)
 
 # %% ../nbs/01_ipynb.ipynb #aef05275
@@ -132,7 +132,7 @@ def from_cells(self:Dialog, cells):
 
 def read_ipynb(fname, cls=Dialog, name=None):
     "Read a dialog from notebook file `fname` (`.ipynb` added if missing), constructing via `cls`; `name` defaults to the file stem"
-    f = Path(fname)
+    f = Path(fname).expanduser()
     if f.suffix != '.ipynb': f = f.with_suffix('.ipynb')
     if not f.exists(): return print(f,'does not exist')
     try: nb = nbformat.read(f, as_version=nbformat.NO_CONVERT)

@@ -13,7 +13,7 @@ import asyncio, json, os, uuid
 from pathlib import Path
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
-from .hist import dlg2canon
+from .hist import dlg2chat
 
 # %% ../nbs/04_oai.ipynb #cc829280
 def codex_msg(role, text):
@@ -152,7 +152,7 @@ def dlg2items(
     aim_info=None, # Model capability dict for media handling; images enabled if None
 ):
     "Responses API items for `dlg`, with each reply's tool calls recovered as real items"
-    return denorm_msgs(dlg2canon(dlg, aim_info))
+    return denorm_msgs(dlg2chat(dlg, aim_info))
 
 async def dlg2thread(
     dlg, # The dialog to convert

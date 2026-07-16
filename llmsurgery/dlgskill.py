@@ -18,7 +18,7 @@ Every function takes `dlg` as a `Dialog`, an ipynb path, or None meaning the cur
 
 - `summary_dlg(dlg)`: one preview line per message.
 - `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, or ids; `context` defaults to 1 (the neighbouring message usually explains the match). Returns live `Message` objects in a `Msgs` list (`.show(maxlen)` for display control), so results are edited directly rather than re-addressed.
-- `view_dlg(dlg_or_msgs)` / `view_msg(id)` / `view_msgs(*ids)`: full views; prompts render as request/reply sections, and `view_dlg` also renders a `find_msgs` result.
+- `view_dlg(dlg_or_msgs)` / `view_msg(id)` / `view_msgs(*ids)` / `msg2xml(m)`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section); `view_dlg` also renders a `find_msgs` result.
 - Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`; the `%%add_msg` magic takes verbatim bodies.
 - Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal); `python_msgs`/`ast_msgs` for structural rewrites; `lnhashview_msg`/`exhash_msg` for hash-verified line edits (needs the `exhash` package).
 - `reply2dlg(pmsg)`/`dlg2reply(sub)`: explode a reply into note/code messages and back; byte-exact for fmt2hist-clean replies.
@@ -31,15 +31,17 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/dlgskill.html.md"""
 
 # %% auto #0
 __all__ = ['msg_insert_line', 'msg_str_replace', 'msg_strs_replace', 'msg_replace_lines', 'msg_del_lines', 'set_dlg', 'cur_dlg',
-           'summary_dlg', 'view_dlg', 'view_msg', 'view_msgs', 'find_msgs', 'move_msgs', 'split_msg', 'merge_msgs',
-           'copy_msgs', 'cut_msgs', 'paste_msgs', 'python_msgs', 'ast_msgs', 'lnhashview_msg', 'exhash_msg', 'add_msg',
-           'del_msgs', 'create_dlg', 'add_msg_magic', 'load_ipython_extension', 'reply2dlg', 'dlg2reply']
+           'summary_dlg', 'msg2xml', 'view_dlg', 'view_msg', 'view_msgs', 'find_msgs', 'move_msgs', 'split_msg',
+           'merge_msgs', 'copy_msgs', 'cut_msgs', 'paste_msgs', 'python_msgs', 'ast_msgs', 'lnhashview_msg',
+           'exhash_msg', 'add_msg', 'del_msgs', 'create_dlg', 'add_msg_magic', 'load_ipython_extension', 'reply2dlg',
+           'dlg2reply']
 
 # %% ../nbs/05_dlgskill.ipynb #a0aeb3fe
 import shlex, re
 from fastcore.utils import *
 from fastcore.meta import splice_sig
 from fastcore.xtras import str_diff
+from fastcore.xml import to_xml, item2xml
 from fastcore.tools import insert_line, str_replace, strs_replace, replace_lines, del_lines, ast_replace
 from .dialog import *
 from .ipynb import read_ipynb, write_ipynb
@@ -76,39 +78,36 @@ def _save(dlg, we_loaded):
 # %% ../nbs/05_dlgskill.ipynb #b120f853
 @patch
 def msg(self:Dialog,
-    id, # A `Message` (matched by its id), or an id: exact, or unique prefix, with the leading `_` optional
+    id, # A `Message` (matched by its id), or an id: exact, or unique prefix
 ):
     "The matching `Message` in this dialog"
     if isinstance(id, Message): id = id.id
-    ms = [m for m in self.messages if m.id in (id, '_'+id)]
-    if not ms: ms = [m for m in self.messages if m.id.startswith(id) or m.id.startswith('_'+id)]
+    ms = [m for m in self.messages if m.id==id]
+    if not ms: ms = [m for m in self.messages if m.id.startswith(id)]
     if len(ms) != 1: raise KeyError(f"{'ambiguous' if ms else 'no'} message id: {id!r}")
     return ms[0]
 
 # %% ../nbs/05_dlgskill.ipynb #def6dd98
 def summary_dlg(
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
+    dlg=None, # A `Dialog`, ipynb path, or iterable of `Message`s (e.g. a `find_msgs` result); current dialog file if None
     maxlen:int=120, # Maximum characters per line
 ):
     "One `preview` line per message"
-    return _to_dlg(dlg).messages.show(maxlen)
+    ms = Msgs(dlg) if isinstance(dlg, (list, L)) else _to_dlg(dlg).messages
+    return ms.show(maxlen)
 
 # %% ../nbs/05_dlgskill.ipynb #9d26ea0f
-_t2tag = dict(note='markdown', code='code', raw='raw')
+_t2tag = dict(note='markdown')
 
-def _msg_xml(m, incl_out=False, trunc_out=True):
-    "One message as concise XML; prompts render as request/reply sections"
-    mid = m.id.removeprefix('_')
-    if m.msg_type==sprompt:
-        res = f'<request>{m.content}</request>'
-        if m.ai_res: res += f'<reply>{m.ai_res}</reply>'
-        return f'<prompt id="{mid}">{res}</prompt>'
-    tag, res = _t2tag[m.msg_type], m.content
-    if incl_out and m.msg_type==scode and m.output:
+def msg2xml(m, incl_out=False, trunc_out=True, ids=True):
+    "One message as concise XML: content bare inside its type tag, with an `<out>` section for a code output or a prompt's reply"
+    if m.msg_type==sprompt: o = m.ai_res
+    elif incl_out and m.msg_type==scode and m.output:
         o = render_outputs_ai(m.output)
         if trunc_out: o = truncstr(o, 512)
-        if o: res = f'<source>{res}</source><output>{o}</output>'
-    return f'<{tag} id="{mid}">{res}</{tag}>'
+    else: o = ''
+    it = item2xml(_t2tag.get(m.msg_type, m.msg_type), m.content, o, id=m.id if ids else None, kind=m.meta.get('rec_kind'))
+    return to_xml(it, do_escape=False)
 
 def view_dlg(
     dlg=None, # A `Dialog`, ipynb path, or iterable of `Message`s (e.g. a `find_msgs` result); current dialog file if None
@@ -122,7 +121,7 @@ def view_dlg(
         d = _to_dlg(dlg)
         nm, ms = d.name, d.messages
     if only_errors: ms = [m for m in ms if m.has_error]
-    body = ''.join(_msg_xml(m, incl_out or only_errors, trunc_out) for m in ms)
+    body = ''.join(msg2xml(m, incl_out or only_errors, trunc_out) for m in ms)
     return PrettyString(f'<dialog name="{nm}">{body}</dialog>')
 
 # %% ../nbs/05_dlgskill.ipynb #04cc9cbd
@@ -147,21 +146,23 @@ def view_msgs(
     nums:bool=True, # Show line numbers?
 ):
     "Show several messages, each preceded by a `# msg <id>` header"
-    return PrettyString('\n'.join(f"# msg {(m if isinstance(m, Message) else _to_dlg(dlg).msg(m)).id.removeprefix('_')}\n{view_msg(m, dlg, nums)}" for m in ms))
+    return PrettyString('\n'.join(f"# msg {(m if isinstance(m, Message) else _to_dlg(dlg).msg(m)).id}\n{view_msg(m, dlg, nums)}" for m in ms))
 
 # %% ../nbs/05_dlgskill.ipynb #4bf78327
-def _hlvl(m):
-    "Heading level of a note message starting with '#', else None"
-    if m.msg_type!=snote or not m.content.startswith('#'): return None
-    return len(m.content) - len(m.content.lstrip('#'))
+def _match_head(m, want):
+    "Does `m` head the section `want` names? Exact first line when `want` starts with '#', hash-stripped text otherwise"
+    if not m.header_level(): return False
+    fl = m.content.split('\n', 1)[0]
+    if want.startswith('#'): return fl.rstrip()==want.rstrip()
+    return fl.lstrip('#').strip()==want.strip()
 
 def find_msgs(
-    re_pattern:str='', # Regex over content (a prompt's reply included), DOTALL+MULTILINE
+    re_pattern:str='', # Regex over content (a prompt's reply included), DOTALL+MULTILINE; an invalid regex matches literally
     dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
     msg_type:str=None, # Optional limit by type ('code', 'note', 'prompt', or 'raw')
     only_err:bool=False, # Only code messages with error outputs?
     only_exp:bool=False, # Only messages with an nbdev `#| export` directive?
-    ids='', # Optionally filter by ids (comma-separated str, or list)
+    ids='', # Optionally filter by ids (comma-separated str, or list); results are always in dialog order, whatever order the ids are given
     before:int=0, # Also include n messages before each match
     after:int=0, # Also include n messages after each match
     context:int=None, # Messages of context around matches (default 1, or 0 when `headers_only`)
@@ -170,6 +171,7 @@ def find_msgs(
     use_regex:bool=True, # Regex matching (else plain substring)?
     headers_only:bool=False, # Only heading notes (an outline view)?
     header_section:str=None, # Return the section starting with this heading, plus its children
+    pred:callable=None, # Extra match criterion, e.g. host-specific flags
 )->Msgs: # Live messages, so results can be edited directly
     "Find messages in `dlg` (a `Dialog`, path, or iterable of messages) matching all the given criteria"
     if isinstance(dlg, (list, L)): d, ms = None, Msgs(dlg)
@@ -178,27 +180,24 @@ def find_msgs(
         ms = d.messages
     if context is None: context = 0 if headers_only else 1
     if header_section is not None:
-        want, out, lvl = header_section.lstrip('#').strip(), [], None
-        for m in ms:
-            l = _hlvl(m)
-            if lvl is None:
-                if not (l and m.content.lstrip('#').strip()==want): continue
-                lvl = l
-            elif l and l<=lvl: break
-            out.append(m)
-        ms = Msgs(out)
+        head = first(m for m in ms if _match_head(m, header_section))
+        ms = section_msgs(ms, head) if head else Msgs()
     if context: before = after = context
     flags = re.DOTALL|re.MULTILINE|(0 if use_case else re.IGNORECASE)
+    if use_regex and re_pattern:
+        try: re.compile(re_pattern)
+        except re.error: use_regex = False
     pat = re.compile(re_pattern if use_regex else re.escape(re_pattern), flags) if re_pattern else None
     if isinstance(ids, str): ids = [o for o in ids.split(',') if o.strip()]
-    if ids: idset = {d.msg(i.strip()).id for i in ids} if d else {i.strip() if i.strip().startswith('_') else '_'+i.strip() for i in ids}
+    if ids: idset = {d.msg(i.strip()).id for i in ids} if d else {i.strip() for i in ids}
     else: idset = None
     def _txt(m): return m.content + ('\n'+m.ai_res if m.msg_type==sprompt and m.ai_res else '')
     def _ok(m):
-        if headers_only and not _hlvl(m): return False
+        if headers_only and not m.header_level(): return False
         if msg_type and m.msg_type!=msg_type: return False
         if only_err and not m.has_error: return False
-        if only_exp and not re.match(r'#\|\s*exports?\b', m.content): return False
+        if only_exp and not m.exported: return False
+        if pred and not pred(m): return False
         if idset is not None and m.id not in idset: return False
         return not pat or bool(pat.search(_txt(m)))
     hits = [i for i,m in enumerate(ms) if _ok(m)]
@@ -270,8 +269,8 @@ def merge_msgs(
     ms = [d.msg(i) for i in ids]
     mtype = ms[0].msg_type if len(set(m.msg_type for m in ms))==1 else snote
     srcs = [m.merge_content(mtype) for m in ms]
-    if mtype==scode and re.match(r'#\|\s*exports?\b', srcs[0]):
-        srcs = [srcs[0]] + [re.sub(r'^#\|\s*exports?[^\n]*\n', '', s) for s in srcs[1:]]
+    stripped = [strip_export(s) for s in srcs]
+    if mtype==scode and stripped != srcs: srcs = ['#| export\n'+stripped[0], *stripped[1:]]  # any exported piece exports the merge
     ms[0].update(content='\n\n'.join(srcs), output=None, msg_type=mtype, attachments=L(ms).attrgot('attachments').concat())
     d.remove_msgs(ms[1:])
     _save(d, sv)

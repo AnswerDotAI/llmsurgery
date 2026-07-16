@@ -8,7 +8,7 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'canon', 'stable_uuid', 'mk_rec', 'save_sess',
            'append_sess', 'msgs2recs', 'mk_tu', 'mk_tr', 'tool_turn', 'load_sess', 'sess_thread', 'rec_txt',
            'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'strip_think', 'trunc_tools', 'reid_recs',
-           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2msgs', 'msgs2dlg', 'sess2dlg']
+           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2chat', 'chat2dlg', 'sess2dlg']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import base64, json, os, re, uuid
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from fastcore.utils import *
 from fastllm.anthropic import denorm_msgs
 from fastllm.chat import Msg, Part, PartType, mk_msg, hist2fmt, data_url
-from .hist import dlg2canon
+from .hist import dlg2chat
 from .dialog import *
 
 # %% ../nbs/03_ant.ipynb #66bb9972
@@ -26,7 +26,7 @@ def sess_dir(
     cwd=None, # Project directory; the current directory if None
 ):
     "The folder where Claude Code keeps session transcripts for the project at `cwd`"
-    return SESSIONS/re.sub(r'[^a-zA-Z0-9]', '-', str(Path(cwd or '.').resolve()))
+    return SESSIONS/re.sub(r'[^a-zA-Z0-9]', '-', str(Path(cwd or '.').expanduser().resolve()))
 
 # %% ../nbs/03_ant.ipynb #a86a78a2
 def cur_sess(
@@ -85,7 +85,7 @@ def mk_rec(
     uid = uid or str(uuid.uuid4())
     if role=='user' and isinstance(content, list) and len(content)==1 and content[0].get('type')=='text': content = content[0]['text']
     msg = dict(type='message', role=role, content=content)
-    r = dict(type=role, uuid=uid, parentUuid=None, sessionId=None, timestamp=ts or _now(), cwd=str(Path(cwd).resolve()),
+    r = dict(type=role, uuid=uid, parentUuid=None, sessionId=None, timestamp=ts or _now(), cwd=str(Path(cwd).expanduser().resolve()),
         version=CC_VERSION, gitBranch='HEAD', isSidechain=False, userType='external', permissionMode='default', message=msg)
     if role=='assistant':
         tu = isinstance(content, list) and any(isinstance(b, dict) and b.get('type')=='tool_use' for b in content)
@@ -111,7 +111,7 @@ def save_sess(
         if 'session_id' in r: r['session_id'] = sid
     f = sess_file(sid, cwd or '.')
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(''.join(json.dumps(r)+'\n' for r in recs))
+    f.write_text(''.join(xdumps(r)+'\n' for r in recs))
     return sid
 
 # %% ../nbs/03_ant.ipynb #c161a097
@@ -128,7 +128,7 @@ def append_sess(
         r['sessionId'],r['parentUuid'],prev = sid,prev,r['uuid']
         if ts: r['timestamp'] = _now() if ts is True else ts
         if 'session_id' in r: r['session_id'] = sid
-    with sess_file(sid, cwd).open('a') as f: f.writelines(json.dumps(r)+'\n' for r in recs)
+    with sess_file(sid, cwd).open('a') as f: f.writelines(xdumps(r)+'\n' for r in recs)
     return sid
 
 # %% ../nbs/03_ant.ipynb #53b019df
@@ -247,13 +247,16 @@ def sess_search(
 def show_recs(
     recs, # Session records, e.g. a slice of `SessHits.recs`
     mx=500, # Characters of text shown per record
+    showall:bool=False, # Include bookkeeping records?
 ):
-    "A readable transcript of the conversation records in `recs`"
+    "A readable transcript of records in `recs`; conversation records only unless `showall`"
     def _s(r):
         t = rec_txt(r)
         if len(t)>mx: t = t[:mx]+f'…[+{len(t)-mx} chars]'
-        return f"--- {rec_role(r)} {r['timestamp'][:19]} ---\n{t}"
-    return PrettyString('\n'.join(_s(r) for r in conv_recs(recs)))
+        role = rec_role(r) if r.get('type') in ('user','assistant') else ':'.join(filter(None, (r.get('type'),r.get('subtype'))))
+        return f"--- {role} {r.get('timestamp','')[:19]} ---\n{t}"
+    return PrettyString('\n'.join(_s(r) for r in (recs if showall else conv_recs(recs))))
+
 
 # %% ../nbs/03_ant.ipynb #9e265e88
 def strip_think(
@@ -335,7 +338,7 @@ def dlg2msgs(
     aim_info=None, # Model capability dict for media handling; images enabled if None
 ):
     "Anthropic-style messages for `dlg`, with each reply's tool calls recovered as real blocks"
-    return denorm_msgs(dlg2canon(dlg, aim_info))
+    return denorm_msgs(dlg2chat(dlg, aim_info))
 
 def dlg2sess(
     dlg, # The dialog to convert
@@ -343,8 +346,21 @@ def dlg2sess(
     key='dlg2sess', # Salt for deterministic record ids
     aim_info=None, # Model capability dict; images enabled if None
 ):
-    "Write `dlg` as a Claude Code session for the project at `cwd`, returning the session id to resume"
-    recs = msgs2recs(dlg2msgs(dlg, aim_info), key=key, cwd=str(Path(cwd or '.').resolve()))
+    "Write `dlg` as a Claude Code session for the project at `cwd`, returning the session id to resume; tagged raw messages re-emit their original records"
+    recs = msgs2recs(dlg2msgs(dlg, aim_info), key=key, cwd=str(Path(cwd or '.').expanduser().resolve()))
+    raws,t = {},-1
+    for m in dlg.messages:
+        if m.msg_type==sprompt: t += 1
+        elif m.msg_type==sraw and m.meta.get('rec_kind'): raws.setdefault(t, []).append(dict(m.meta['rec']))
+    if raws:
+        out,t = [],-1
+        for r in recs:
+            if r['type']=='user' and rec_role(r)!='tool':
+                out += raws.get(t, [])
+                t += 1
+            out.append(r)
+        out += raws.get(t, [])
+        recs = out
     return save_sess(recs, stable_uuid(f'{key}:{dlg.name}'), cwd)
 
 # %% ../nbs/03_ant.ipynb #16af5ac6
@@ -363,7 +379,7 @@ def _norm_user(content):
         else: raise ValueError(f"unsupported user block: {b['type']}")
     return mk_msg(items)
 
-def recs2msgs(
+def recs2chat(
     recs, # Session records, e.g. from `load_sess`
 ):
     "Canonical fastllm messages for the conversation records in `recs`"
@@ -391,8 +407,8 @@ def recs2msgs(
     return msgs
 
 # %% ../nbs/03_ant.ipynb #ac13833a
-def msgs2dlg(
-    msgs, # Canonical messages, e.g. from `recs2msgs`
+def chat2dlg(
+    msgs, # Canonical messages, e.g. from `recs2chat`
     name, # Dialog name
     cls=Dialog, # Dialog class to create
     mx=2000, # Maximum characters per rendered tool input/output string; None disables truncation (see `hist2fmt`)
@@ -422,6 +438,19 @@ def sess2dlg(
     name=None, # Dialog name; the session id if None
     mx=2000, # Maximum characters per rendered tool input/output string; None disables truncation (see `hist2fmt`)
 ):
-    "The conversation of session `sid` as a dialog, one prompt per user turn"
+    "The conversation of session `sid` as a dialog, one prompt per user turn; `system` records ride along as tagged raws"
     recs = strip_think(sess_thread(load_sess(sid, cwd)))
-    return msgs2dlg(recs2msgs(recs), name or sid or cur_sess(), mx=mx)
+    dlg = chat2dlg(recs2chat(recs), name or sid or cur_sess(), mx=mx)
+    prompts,t,anchor = [m for m in dlg.messages if m.msg_type==sprompt],-1,None
+    for r in recs:
+        r = obj2dict(r)
+        if r['type']=='user' and rec_role(r)!='tool':
+            t += 1
+            anchor = prompts[t]
+            anchor.meta['timestamp'] = r.get('timestamp')
+        elif r['type']=='assistant':
+            if u := nested_idx(r, 'message', 'usage'): prompts[t].meta['usage'] = u
+        elif r['type']=='system':
+            kw = dict(after=anchor) if anchor else dict(idx=0)
+            anchor = dlg.mk_message('', msg_type=sraw, meta=dict(rec_kind='system', rec=r), **kw)
+    return dlg

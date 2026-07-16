@@ -7,7 +7,8 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/dialog.html.md"""
 # %% auto #0
 __all__ = ['smsg_types', 'scode', 'snote', 'sprompt', 'sraw', 'tiny_png', 'add_id_hash', 'Msgs', 'Dialog', 'mk_output',
            'mk_displayobj', 'displayobj', 'mk_code_output', 'code_output', 'prompt_output', 'Message', 'get_msg',
-           'get_output_mds', 'ruuid4', 'Attachment']
+           'header_info', 'section_msgs', 'get_output_mds', 'mk_jmsg', 'mk_stream', 'mk_error', 'mk_dispdata',
+           'mk_execresult', 'output_from_msg', 'strip_export', 'dlg2py', 'ruuid4', 'Attachment']
 
 # %% ../nbs/00_dialog.ipynb #5571d07a
 import base64, copy, random, weakref
@@ -89,15 +90,15 @@ class Message:
         content='', # The message text: markdown, code, or a prompt's request
         dlg=None, # The `Dialog` this message belongs to
         output='', # Jupyter-style output list (code and prompt messages), or ''
-        id=None, # Message id; `_` plus 4 random hex bytes if None
+        id=None, # Message id; 4 random hex bytes if None
         msg_type='code', # One of `smsg_types`: code, note, prompt, or raw
         attachments=None, # `Attachment`s carried by the message
         meta=None, # Remaining cell metadata, carried verbatim through save/load
         **xtras, # Extra attributes to store as-is
     ):
         "An ipynb cell, or Solveit message (which adds the `prompt` type)"
-        # Prepend `_` to ensure it is a valid DOM id too
-        if id is None: id = '_'+rtoken_hex(4)
+        # Bare hex, coerced to str: hosts add any display prefix (e.g. solveit's DOM `_`) at their boundary
+        id = rtoken_hex(4) if id is None else str(id)
         attachments = listify(attachments)
         meta = dict(meta or {})
         if content  is UNSET: content = ''
@@ -268,6 +269,30 @@ def remove_from_dlg(self:Message):
     "Remove this message from its dialog"
     return self.dlg.remove_msgs([self])
 
+# %% ../nbs/00_dialog.ipynb #03ed3d82
+_re_hdr = re.compile(r' {0,3}(?P<level>#{1,6})\s+(?P<text>.*)')
+
+def header_info(content):
+    "Markdown heading (level, text) of `content`'s first line; (0, None) if not a heading"
+    m = _re_hdr.match(content or '')
+    return (len(m['level']), m['text']) if m else (0, None)
+
+@patch
+def header_level(self:Message):
+    "Heading level of a heading note message, else 0"
+    return header_info(self.content)[0] if self.msg_type==snote else 0
+
+def section_msgs(ms, head):
+    "`head` plus its section in `ms`: messages until the next heading of the same or higher level"
+    lvl = head.header_level()
+    if not lvl: return Msgs([head])
+    ms, res = list(ms), [head]
+    for m in ms[ms.index(head)+1:]:
+        l = m.header_level()
+        if l and l<=lvl: break
+        res.append(m)
+    return Msgs(res)
+
 # %% ../nbs/00_dialog.ipynb #e074c630
 @patch(as_prop=True)
 def has_error(self:Message):
@@ -279,6 +304,82 @@ def get_output_mds(output):
     if not output: return []
     return [o['data']['text/markdown'] for o in output
         if o.get('output_type') in ('display_data', 'execute_result') and 'text/markdown' in o.get('data', {})]
+
+# %% ../nbs/00_dialog.ipynb #c09bb8be
+def mk_jmsg(typ, metadata=None, **kwargs):
+    "A minimal Jupyter iopub message dict of type `typ`, with `kwargs` as its content"
+    kwargs['metadata'] = metadata or {}
+    return {'msg_type':typ, 'content':kwargs, 'header':{'msg_type':typ}}
+
+def mk_stream(text, name='stdout'): return mk_jmsg('stream', name=name, text=text)
+def mk_error(ename='Exception', evalue='', traceback=None): return mk_jmsg('error', ename=ename, evalue=evalue, traceback=traceback or [])
+def mk_dispdata(data, metadata=None, display_id=None):
+    return mk_jmsg('display_data', data=data, metadata=metadata, transient={'display_id':display_id} if display_id else {})
+def mk_execresult(data, metadata=None, execution_count=1):
+    return mk_jmsg('execute_result', data=data, metadata=metadata, execution_count=execution_count)
+
+def output_from_msg(jmsg):
+    "ipynb output dict for the Jupyter iopub message dict `jmsg`"
+    mt,c = jmsg['header']['msg_type'],jmsg['content']
+    if mt=='stream': return dict(output_type=mt, name=c['name'], text=c['text'])
+    if mt=='error': return dict(output_type=mt, ename=c['ename'], evalue=c['evalue'], traceback=c['traceback'])
+    if mt in ('execute_result','display_data'):
+        res = mk_output(mt, c['data'], c['metadata'])
+        if mt=='execute_result': res['execution_count'] = c.get('execution_count')
+        return res
+    raise ValueError(f'Unrecognized output msg type: {mt!r}')
+
+# %% ../nbs/00_dialog.ipynb #eb52bbdb
+@patch
+def clear_output(self:Message, wait=False):
+    "Clear outputs now, or on the next `add_output` if `wait`"
+    self._clear_pending = wait
+    if not wait: self.output = [] if self.msg_type in (scode, sprompt) else ''
+
+@patch
+def add_output(self:Message,
+    jmsg, # A Jupyter iopub message dict
+    trunc=None, # Optional transform applied to each new output dict, e.g. truncation
+    on_input=None, # Optional handler for kernel `input_request` messages
+):
+    "Convert iopub message `jmsg` to an output dict and add it to this message's outputs"
+    if not self.output: self.output = []
+    self.clear_out_cache()
+    if getattr(self, '_clear_pending', False): self.clear_output()
+    mt = jmsg['header']['msg_type']
+    if mt=='execute_result' and self.content.rstrip().endswith(';'): return
+    if mt=='input_request': return on_input(jmsg) if on_input else None
+    display_id = nested_idx(jmsg, 'content', 'transient', 'display_id')
+    if isupd := mt=='update_display_data':
+        assert display_id
+        jmsg['msg_type'] = jmsg['header']['msg_type'] = 'display_data'
+    out = output_from_msg(jmsg)
+    if trunc: out = trunc(out)
+    if display_id: out['metadata']['did'] = display_id
+    if isupd:
+        for i,o in enumerate(self.output):
+            if nested_idx(o, 'metadata', 'did')==display_id:
+                self.output[i] = out
+                return
+    self.output.append(out)
+
+# %% ../nbs/00_dialog.ipynb #08680316
+_re_exp = re.compile(r'#\|\s*exports?[^\n]*\n?')
+
+def strip_export(s):
+    "Content `s` without its leading `#| export` directive line, if any"
+    m = _re_exp.match(s)
+    return s[m.end():] if m else s
+
+def _get_exported(self): return bool(_re_exp.match(self.content))
+def _set_exported(self, v):
+    if bool(v) != self.exported: self.content = '#| export\n'+self.content if v else strip_export(self.content)
+Message.exported = property(_get_exported, _set_exported,
+    doc="Whether this message's content carries an nbdev `#| export` directive; assigning edits the content to match")
+
+def dlg2py(dlg):
+    "The exported code of `dlg`, as a python source string"
+    return '\n\n'.join(m.content for m in dlg.messages if m.msg_type==scode and m.exported)
 
 # %% ../nbs/00_dialog.ipynb #860657a4
 @patch
@@ -331,7 +432,7 @@ def ruuid4():
 
 class Attachment(BasicRepr):
     def __init__(self, data:bytes, content_type:str, id:str=''):
-        if not id: id=ruuid4()
+        id = str(id) if id else ruuid4()
         store_attr()
 
 add_id_hash(Attachment, 'id')
