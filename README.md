@@ -11,15 +11,13 @@ pip install llmsurgery
 
 ## What’s here
 
-Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code with outputs, and prompt/reply pairs in one editable, diffable document. This library is the data model and surgery toolkit for them, extracted from [Solveit](https://solveit.fast.ai), which subclasses these types to build its live environment:
+Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code with outputs, and prompt/reply pairs in one editable, diffable document. This library is the data model and surgery toolkit for them, consisting of:
 
 - `llmsurgery.dialog`: [`Message`](https://AnswerDotAI.github.io/llmsurgery/dialog.html#message), [`Dialog`](https://AnswerDotAI.github.io/llmsurgery/dialog.html#dialog), and [`Attachment`](https://AnswerDotAI.github.io/llmsurgery/dialog.html#attachment) — a message carries exactly what the ipynb spec provides (content, output, type, id, attachments) plus a verbatim metadata dict, so host annotations round-trip untouched; hosts declare their own fields via `meta_attrs` and inject their subclasses through `msg_cls` and `read_ipynb(cls=)`.
 - `llmsurgery.ipynb`: reading and writing dialogs as `.ipynb` files.
 - `llmsurgery.hist`: converting dialogs to LLM chat history, including recovering tool calls from replies as structured messages. Rendering defaults are deliberately unopinionated (bare prompts, pass-through media, verbatim latex); hosts install their policies as class members (`prompt_txt`, `prep_img`, `media_extra`, `ai_renderers`, `UNSUPPORTED_MSG`).
 - `llmsurgery.ant`: Claude Code session transcripts: read, write, search, curate, and build them from dialogs, so `claude --resume` opens an authored conversation.
 - `llmsurgery.oai`: Codex threads: drive `codex app-server` to inject authored histories, ready for `codex resume`.
-
-Documentation: <https://AnswerDotAI.github.io/llmsurgery/>
 
 ## The theory
 
@@ -32,7 +30,7 @@ A dialog is a conversation between a human, an AI, and an interpreter. Each mess
 
 A reply may itself contain runnable code with results, so a whole dialog can live inside one message. [`reply2dlg`](https://AnswerDotAI.github.io/llmsurgery/hist.html#reply2dlg) opens a reply up as a dialog and [`dlg2reply`](https://AnswerDotAI.github.io/llmsurgery/hist.html#dlg2reply) puts it back.
 
-Dialogs and Jupyter notebooks both serialize to the ipynb format, but they are not the same thing. A notebook has cells. A dialog has messages. Messages add prompts, which notebooks cannot express, and they make structure explicit that notebooks leave implicit. A heading opens a section that runs to the next heading of the same level. An export directive marks the code that belongs to a module. The shared file format means the same tools read both. The word tells you which layer you are on. File-level tools such as `fastcore.nbio` and `exhash` speak of cells and notebooks. Everything in this library speaks of messages and dialogs.
+Dialogs and Jupyter notebooks both serialize to the ipynb format, but they are not the same thing. A notebook has cells. A dialog has messages. Messages can be *prompts*, which notebooks cannot express, and they make structure explicit that notebooks leave implicit. E.g a heading opens a section that runs to the next heading of the same level; an export directive marks the code that belongs to a module. The shared file format means the same tools read both. The word tells you which layer you are on. File-level tools such as `fastcore.nbio` and `exhash` speak of cells and notebooks. Everything in this library speaks of messages and dialogs.
 
 The [`Dialog`](https://AnswerDotAI.github.io/llmsurgery/dialog.html#dialog) is the center of the library. Everything else is a projection of it. A storage projection must preserve everything that means something. What it does not understand it carries verbatim in metadata, and what is broken it heals rather than rejects. A transmission projection normalizes on purpose, and what it drops is written into its contract. A display projection only goes one way. The rule is to convert in, edit at the center, and project out. The function names say the same thing. Every converter has `dlg` on exactly one side.
 
@@ -47,5 +45,3 @@ The [`Dialog`](https://AnswerDotAI.github.io/llmsurgery/dialog.html#dialog) is t
 | XML views | display, one-way |  | [`view_dlg`](https://AnswerDotAI.github.io/llmsurgery/dlgskill.html#view_dlg), [`msg2xml`](https://AnswerDotAI.github.io/llmsurgery/dlgskill.html#msg2xml) |
 
 The session codecs route through chat on their way to the wire: ant’s [`dlg2msgs`](https://AnswerDotAI.github.io/llmsurgery/ant.html#dlg2msgs) and oai’s [`dlg2items`](https://AnswerDotAI.github.io/llmsurgery/oai.html#dlg2items) are each `denorm_msgs(dlg2chat(...))`.
-
-The section title comes from Peter Naur’s essay Programming as Theory Building. A program is the theory its builders hold, and the source alone does not carry it. The builders here include AI models whose memory is wiped between sessions. The theory must live in artifacts like this page, or it dies at every compaction.
