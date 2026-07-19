@@ -29,6 +29,7 @@ llmsurgery = "llmsurgery._modidx:d"
 
 [project.entry-points.pyskills]
 "llmsurgery.dlgskill" = "llmsurgery.dlgskill"
+"llmsurgery.antskill" = "llmsurgery.antskill"
 
 [tool.setuptools.dynamic]
 version = {attr = "llmsurgery.__version__"}
@@ -37,3 +38,8 @@ version = {attr = "llmsurgery.__version__"}
 include = ["llmsurgery"]
 
 [tool.nbdev]
+allowed_metadata_keys = ['solveit']
+allowed_cell_metadata_keys = ['solveit_ai']
+
+[tool.chkstyle]
+skip_paths = ["_modidx.py"]

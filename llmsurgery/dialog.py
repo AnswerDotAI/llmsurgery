@@ -52,7 +52,9 @@ class Dialog(BasicRepr):
         name, # Dialog name, usually the file stem
         messages=None, # Initial `Message`s
         meta=None, # Notebook-level metadata dict, carried verbatim through save/load
-    ): self.name,self.messages,self.meta = str(name),Msgs(listify(messages)),dict(meta or {})
+    ):
+        self.name,self.messages,self.meta = str(name),Msgs(listify(messages)),dict(meta or {})
+        for m in self.messages: m.dlg = self
 
     def _repr_markdown_(self):
         msgs = ''
@@ -209,6 +211,8 @@ def mk_message(self:Dialog,
     "Make new message and insert it into notebook before/after specified cell, or start of list (idx=0) by default"
     if msg_type==scode and isinstance(output,str): output = loads(output or '[]')
     msg = self.msg_cls(content, self, msg_type=msg_type, output=output, **kwargs)
+    if 'id' not in kwargs:  # generated ids must not collide, even if the global random stream was re-seeded
+        while any(m.id==msg.id for m in self.messages): msg.id = rtoken_hex(4)
     if isinstance(after,  Message): after =after.id
     if isinstance(before, Message): before=before.id
     if after is not None: idx = next((i for i,c in enumerate(self.messages) if c.id==after ), -1)+1

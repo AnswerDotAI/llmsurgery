@@ -7,7 +7,7 @@ Use this whenever the question or edit concerns a notebook's content: messages, 
 Notebook work happens at three levels, and picking the right level is most of using this module well:
 
 - Content (this module): what the messages say and how they change. `summary_dlg`, `find_msgs`, `view_dlg`, the message editing operations, and `reply2dlg`/`dlg2reply` for a prompt's reply.
-- Representation (`fastcore.nbio`): which keys exist, whether a file is schema-valid, whether bytes changed. Start with `validate_nb`/`validate_cell`, which name the offending cell; use `read_nb` directly when the question is about the dict itself.
+- Representation (`fastcore.nbio`, formerly `execnb.nbio`): which keys exist, whether a file is schema-valid, whether bytes changed. Start with `validate_nb`/`validate_cell`, which name the offending cell; use `read_nb` directly when the question is about the dict itself.
 - Raw text: only when the file will not parse at all.
 
 Dropping a level is correct exactly when the question is about the representation rather than the content ("why does Jupyter reject this file?", "did that write change any bytes?"). Treat each drop as a signal, though: needing nbio or raw JSON to answer a content question means a higher-level tool was missing. Re-read this module's docs to check it truly is missing, and then propose adding it rather than repeating the workaround.
@@ -17,13 +17,22 @@ Dropping a level is correct exactly when the question is about the representatio
 Every function takes `dlg` as a `Dialog`, an ipynb path, or None meaning the current dialog file (`set_dlg`/`cur_dlg`); changes persist automatically only for file-backed dialogs.
 
 - `summary_dlg(dlg)`: one preview line per message.
-- `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, or ids; `context` defaults to 1 (the neighbouring message usually explains the match). Returns live `Message` objects in a `Msgs` list (`.show(maxlen)` for display control), so results are edited directly rather than re-addressed.
+- `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, ids, or a `pred` (`symdef_finder`/`symref_finder`/`ast_finder` build structural ones); `context` defaults to 1 (the neighbouring message usually explains the match). Returns live `Message` objects in a `Msgs` list (`.show(maxlen)` for display control), so results are edited directly rather than re-addressed. Every message carries a `dlg` backref to its owning `Dialog`, so dialog-level operations are always in reach from a message in hand (e.g. `m.dlg.save()` after mutating `m.output` directly).
 - `view_dlg(dlg_or_msgs)` / `view_msg(id)` / `view_msgs(*ids)` / `msg2xml(m)`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section); `view_dlg` also renders a `find_msgs` result.
 - Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`; the `%%add_msg` magic takes verbatim bodies.
 - Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal); `python_msgs`/`ast_msgs` for structural rewrites; `lnhashview_msg`/`exhash_msg` for hash-verified line edits (needs the `exhash` package).
 - `reply2dlg(pmsg)`/`dlg2reply(sub)`: explode a reply into note/code messages and back; byte-exact for fmt2hist-clean replies.
 
-Workflow: `read_ipynb` (or a live Dialog), `summary_dlg` to orient, `find_msgs` to locate, view then edit, `dlg.validate()` to catch model-level damage early, `dlg.save()` to write back. Editing operations return diffs; reading the diff is the immediate verification.
+## Idiomatic usage
+
+Start by registering the notebook: `set_dlg(path)` makes every function here default to it (and clikernel's `%nbrun` magic follows suit), so calls read as "do this to message X". Then orient before acting:
+
+- `summary_dlg()` first for anything sizable: a cheap one-line-per-message map. `view_dlg()` when you need the full story in order with ids. Read a notebook in full before describing or changing what it does - the interleaved prose, examples, and stored outputs (`incl_out=True`) are the design rationale.
+- Read before probing: an ad-hoc "what happens if..." experiment usually re-derives, more slowly and less reliably, what an existing example cell already shows. If after reading you still need an experiment, that's a gap in the notebook - add it as a proper example cell so the next reader doesn't repeat it.
+- `find_msgs` is the targeted view: keep the default `context=1` (the neighbouring markdown usually explains the match), and `ids=` with context is the positional query ("does A precede B?", "what's the idiom around here?"). Name questions are structural, not textual: `symdef_finder`/`symref_finder`/`ast_finder` beat regexes over binding syntax. Where available, rgapi's `nbrg` searches cell sources across files and returns the cell ids these functions take.
+- Edit at the right level: `add_msg`/`%%add_msg` for new messages; within a message, prefer hash-verified addressing (`lnhashview_msg`/`exhash_msg`, or exhash's `lnhashview_cell`/`exhash_cell` by path and cell id) - view with the lnhash variant the moment an edit is plausible, so the view doubles as the edit's address book. The plain `msg_*` editors fit where exhash can't express the edit, e.g. one `msg_str_replace` across an id list. Never splice via `read_nb`/`write_nb` internals: if a primitive is missing here, stop and propose adding it.
+- Every editing operation returns a diff: read it - that's the immediate verification. `dlg.validate()` catches model-level damage early; `dlg.save()` writes back.
+- Don't hand-roll `json`/`grep`/`bash` over ipynb files for anything these functions cover, and don't wrap calls in defensive scaffolding (`hasattr`, `try/except`) - call directly and read the bare result.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/dlgskill.html.md"""
 
@@ -32,9 +41,9 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/dlgskill.html.md"""
 # %% auto #0
 __all__ = ['msg_insert_line', 'msg_str_replace', 'msg_strs_replace', 'msg_replace_lines', 'msg_del_lines', 'set_dlg', 'cur_dlg',
            'summary_dlg', 'msg2xml', 'view_dlg', 'view_msg', 'view_msgs', 'find_msgs', 'move_msgs', 'split_msg',
-           'merge_msgs', 'copy_msgs', 'cut_msgs', 'paste_msgs', 'python_msgs', 'ast_msgs', 'lnhashview_msg',
-           'exhash_msg', 'add_msg', 'del_msgs', 'create_dlg', 'add_msg_magic', 'load_ipython_extension', 'reply2dlg',
-           'dlg2reply']
+           'merge_msgs', 'copy_msgs', 'cut_msgs', 'paste_msgs', 'python_msgs', 'ast_msgs', 'symdef_finder',
+           'symref_finder', 'ast_finder', 'lnhashview_msg', 'exhash_msg', 'add_msg', 'del_msgs', 'create_dlg',
+           'add_msg_magic', 'load_ipython_extension', 'reply2dlg', 'dlg2reply']
 
 # %% ../nbs/05_dlgskill.ipynb #a0aeb3fe
 import shlex, re
@@ -171,7 +180,7 @@ def find_msgs(
     use_regex:bool=True, # Regex matching (else plain substring)?
     headers_only:bool=False, # Only heading notes (an outline view)?
     header_section:str=None, # Return the section starting with this heading, plus its children
-    pred:callable=None, # Extra match criterion, e.g. host-specific flags
+    pred:callable=None, # Extra match criterion, e.g. from `symdef_finder`/`symref_finder`/`ast_finder`, or host-specific flags
 )->Msgs: # Live messages, so results can be edited directly
     "Find messages in `dlg` (a `Dialog`, path, or iterable of messages) matching all the given criteria"
     if isinstance(dlg, (list, L)): d, ms = None, Msgs(dlg)
@@ -388,6 +397,22 @@ def ast_msgs(
 ):
     "Apply ast-grep `repls` to message sources (requires the optional `remold` package)"
     return python_msgs(lambda t: ast_replace(t, repls), *ids, dlg=dlg)
+
+# %% ../nbs/05_dlgskill.ipynb #b3f84a46
+def symdef_finder(name):
+    "`find_msgs` predicate: does the message bind `name` at cell top level? (requires `remold`)"
+    from remold import symdefs
+    return lambda m: name in symdefs(m.content)
+
+def symref_finder(name):
+    "`find_msgs` predicate: does the message reference `name`? (requires `remold`)"
+    from remold import symrefs
+    return lambda m: name in symrefs(m.content)
+
+def ast_finder(pattern):
+    "`find_msgs` predicate: does ast-grep `pattern` match in the message? (requires `remold`)"
+    from remold import astfind
+    return lambda m: bool(astfind(m.content, pattern))
 
 # %% ../nbs/05_dlgskill.ipynb #b6f8b9b3
 def lnhashview_msg(m):
