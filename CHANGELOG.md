@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.5
+
+### New Features
+
+- Split dlgskill into transactional file functions and in-memory session methods; reorder Dialog(name=) keyword, add MsgRow snapshots, rename hist `to_xml`→`hist_xml` and `exhash_msg`→`msg_exhash`, replace `python_msgs`/`ast_msgs` with `msg_ast_replace` ([#8](https://github.com/AnswerDotAI/llmsurgery/issues/8))
+
+
 ## 0.0.4
 
 ### New Features
@@ -30,4 +37,3 @@
 ### New Features
 
 - Add `append_sess` to chain records onto an existing session tail; misc style cleanups ([#1](https://github.com/AnswerDotAI/llmsurgery/issues/1))
-
