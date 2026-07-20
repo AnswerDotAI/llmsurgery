@@ -20,7 +20,7 @@ Every function takes `dlg` as a `Dialog`, an ipynb path, or None meaning the cur
 - `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, ids, or a `pred` (`symdef_finder`/`symref_finder`/`ast_finder` build structural ones); `context` defaults to 1 (the neighbouring message usually explains the match). Returns live `Message` objects in a `Msgs` list (`.show(maxlen)` for display control), so results are edited directly rather than re-addressed. Every message carries a `dlg` backref to its owning `Dialog`, so dialog-level operations are always in reach from a message in hand (e.g. `m.dlg.save()` after mutating `m.output` directly).
 - `view_dlg(dlg_or_msgs)` / `view_msg(id)` / `view_msgs(*ids)` / `msg2xml(m)`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section); `view_dlg` also renders a `find_msgs` result.
 - Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`; the `%%add_msg` magic takes verbatim bodies.
-- Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal); `python_msgs`/`ast_msgs` for structural rewrites; `lnhashview_msg`/`exhash_msg` for hash-verified line edits (needs the `exhash` package).
+- Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal); `python_msgs`/`ast_msgs` for structural rewrites; `lnhashview_msg`/`exhash_msg` for hash-verified line edits (`lnhashview_msg` is `view_msg(..., lnhashs=True)`; only `exhash_msg` needs the `exhash` package).
 - `reply2dlg(pmsg)`/`dlg2reply(sub)`: explode a reply into note/code messages and back; byte-exact for fmt2hist-clean replies.
 
 ## Idiomatic usage
@@ -50,8 +50,9 @@ import shlex, re
 from fastcore.utils import *
 from fastcore.meta import splice_sig
 from fastcore.xtras import str_diff
-from fastcore.xml import to_xml, item2xml
-from fastcore.tools import insert_line, str_replace, strs_replace, replace_lines, del_lines, ast_replace
+from fastcore.xml import to_xml
+from fastcore.nbio import item2xml, _dir_attrs
+from fastcore.tools import insert_line, str_replace, strs_replace, replace_lines, del_lines, ast_replace, lnhash
 from .dialog import *
 from .ipynb import read_ipynb, write_ipynb
 from .hist import reply2dlg, dlg2reply, render_outputs_ai  # chkstyle: ignore (re-exported via _all_)
@@ -115,7 +116,8 @@ def msg2xml(m, incl_out=False, trunc_out=True, ids=True):
         o = render_outputs_ai(m.output)
         if trunc_out: o = truncstr(o, 512)
     else: o = ''
-    it = item2xml(_t2tag.get(m.msg_type, m.msg_type), m.content, o, id=m.id if ids else None, kind=m.meta.get('rec_kind'))
+    it = item2xml(_t2tag.get(m.msg_type, m.msg_type), m.content, o, id=m.id if ids else None,
+                  kind=m.meta.get('rec_kind'), **_dir_attrs(m.meta))
     return to_xml(it, do_escape=False)
 
 def view_dlg(
@@ -138,24 +140,24 @@ def view_msg(
     m, # A `Message`, or an id looked up in `dlg`
     dlg=None, # `Dialog` or path when `m` is an id; the current dialog file if None
     nums:bool=True, # Show line numbers?
-    view_range:list=None, # Optional 1-based (start, end) range; end=-1 for last line
+    start_line:int=1, # Starting line to view
+    end_line:int=None, # End line (defaults to last line if None; -1 for EOF)
+    lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
 ):
-    "Show message content with optional line numbers"
+    "Show message content with optional line numbers or exhash addresses"
     if not isinstance(m, Message): m = _to_dlg(dlg).msg(m)
     lines = m.content.splitlines()
-    st = 1
-    if view_range:
-        st, e = view_range
-        lines = lines[st-1:len(lines) if e==-1 else e]
-    return PrettyString('\n'.join(f'{i}: {l}' for i,l in enumerate(lines, st)) if nums else '\n'.join(lines))
+    lines = lines[start_line-1:len(lines) if end_line in (None,-1) else end_line]
+    return PrettyString('\n'.join((lnhash(i,l)+l if lnhashs else f'{i}: {l}' if nums else l) for i,l in enumerate(lines, start_line)))
 
 def view_msgs(
     *ms, # `Message`s or ids
     dlg=None, # `Dialog` or path for id lookup; the current dialog file if None
     nums:bool=True, # Show line numbers?
+    lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
 ):
     "Show several messages, each preceded by a `# msg <id>` header"
-    return PrettyString('\n'.join(f"# msg {(m if isinstance(m, Message) else _to_dlg(dlg).msg(m)).id}\n{view_msg(m, dlg, nums)}" for m in ms))
+    return PrettyString('\n'.join(f"# msg {(m if isinstance(m, Message) else _to_dlg(dlg).msg(m)).id}\n{view_msg(m, dlg, nums, lnhashs=lnhashs)}" for m in ms))
 
 # %% ../nbs/05_dlgskill.ipynb #4bf78327
 def _match_head(m, want):
@@ -415,19 +417,26 @@ def ast_finder(pattern):
     return lambda m: bool(astfind(m.content, pattern))
 
 # %% ../nbs/05_dlgskill.ipynb #b6f8b9b3
-def lnhashview_msg(m):
-    "Hash-addressed view of `m.content`, for `exhash_msg` (requires the `exhash` package)"
-    from exhash import lnhashview
-    return lnhashview(m.content)
+def lnhashview_msg(
+    m, # A `Message`, or an id looked up in `dlg`
+    dlg=None, # `Dialog` or path when `m` is an id; the current dialog file if None
+):
+    "Hash-addressed view of `m.content`, for `exhash_msg`"
+    return view_msg(m, dlg, lnhashs=True)
 
-def exhash_msg(m,
+def exhash_msg(
+    m, # A `Message`, or an id looked up in `dlg`
     *cmds:tuple, # exhash command tuples, addresses from `lnhashview_msg`
     sw:int=4, # Shift width for indent commands
+    dlg=None, # `Dialog` or path when `m` is an id; the current dialog file if None
 ):
     "Apply exhash commands to `m.content`, returning the diff"
     from exhash import exhash
+    d,sv = (None,False) if isinstance(m, Message) else _load_dlg(dlg)
+    if d is not None: m = d.msg(m)
     res = exhash(m.content, list(cmds), sw=sw)
     m.content = '\n'.join(res.lines)
+    _save(d, sv)
     return PrettyString(res.format_diff(context=1))
 
 # %% ../nbs/05_dlgskill.ipynb #38af2f2e

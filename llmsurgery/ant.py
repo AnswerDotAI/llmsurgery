@@ -10,10 +10,12 @@ __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'load_
            'load_sess', 'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist', 'prompt_hist',
            'is_think_rec', 'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name', 'fork_sess',
            'dlg2msgs', 'dlg2sess', 'recs2chat', 'chat2dlg', 'sess2dlg', 'resolve_session', 'split_compaction',
-           'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session']
+           'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session',
+           'run_locked_agent']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
-import base64, json, os, re, uuid
+import asyncio, base64, json, os, re, uuid
+from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
 from datetime import datetime, timezone
 from fastcore.utils import *
 from fastllm.anthropic import denorm_msgs
@@ -286,7 +288,7 @@ def prompt_hist(
 ):
     "Claude Code's global prompt history, oldest first: every prompt typed on this machine, kept even when its transcript is gone"
     rows = [json.loads(l) for l in Path(path or Path.home()/'.claude'/'history.jsonl').read_text().splitlines()]
-    res = [AttrDict(ts=datetime.fromtimestamp(r['timestamp']/1000), project=r.get('project',''), display=r.get('display',''))
+    res = [AttrDict(ts=datetime.fromtimestamp(r['timestamp']/1000), project=r.get('project',''), display=r.get('display',''))  # chkstyle: ignore-node
            for r in rows if isinstance(r.get('timestamp'), (int,float))]
     if project: res = [r for r in res if r.project==str(Path(project).expanduser().resolve())]
     if isinstance(since, str): since = datetime.fromisoformat(since)
@@ -573,7 +575,7 @@ def compact_records(recs, content, pre_toks, post_toks):
     command = mk_rec('user', '<command-name>/compact</command-name>\n            <command-message>compact</command-message>\n            <command-args></command-args>', cwd=meta['cwd'])
     stdout = mk_rec('user', '<local-command-stdout>Compacted (ctrl+o to see full summary)</local-command-stdout>', cwd=meta['cwd'])
     for prev,o in zip((summary,caveat,command), (caveat,command,stdout)): o['parentUuid'] = prev['uuid']
-    for o in (caveat,command,stdout): o.update(meta); o.update(tag)
+    for o in (caveat,command,stdout): o.update(meta); o.update(tag)  # chkstyle: ignore
     return L(boundary,summary,caveat,command,stdout)
 
 # %% ../nbs/03_ant.ipynb #d8ce7eef
@@ -607,3 +609,23 @@ def compact_session(ref, cwd='.', policy=compact_policy, enc=None):
     compaction = prepare_compaction(ref, cwd, policy, enc)
     append_compaction(compaction)
     return compaction
+
+# %% ../nbs/03_ant.ipynb #8e9ed801
+async def run_locked_agent(
+    sysp:str, # Protocol for the child agent, as its system prompt
+    prompt:str, # The task instance, e.g. a repo path
+    allowed:list, # Permission rules, e.g. [r'Bash(/path/step1.sh *)']
+    model:str='sonnet', # Model alias or full id
+    max_turns:int=15, # Turn budget for the child
+    timeout:int=600, # Seconds before the child is cancelled and killed
+):
+    "Run a bare headless agent locked to `allowed` commands, returning (report, message stream)"
+    tools = sorted({m[0] for r in allowed if (m:=re.match(r'\w+', r))})
+    opts = ClaudeAgentOptions(model=model, max_turns=max_turns, system_prompt=sysp,
+        tools=tools, setting_sources=[], allowed_tools=allowed)
+    msgs = []
+    async def _go():
+        async for m in query(prompt=prompt, options=opts): msgs.append(m)
+    await asyncio.wait_for(_go(), timeout)
+    txts = [b.text for m in msgs if isinstance(m, AssistantMessage) for b in m.content if isinstance(b, TextBlock)]
+    return (txts[-1] if txts else None), msgs

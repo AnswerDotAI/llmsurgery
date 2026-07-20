@@ -18,10 +18,10 @@ from itertools import chain
 from fastcore.utils import *
 from fastcore.ansi import strip_ansi
 from fastcore.xtras import detect_mime
-from fastcore.nbio import preferred_msg_out, concat_streams
-from fastcore.xml import to_xml, item2xml, Media, MediaUnavailable
+from fastcore.nbio import preferred_msg_out, concat_streams, item2xml, _dir_attrs
+from fastcore.xml import to_xml, Media, MediaUnavailable
 from fastllm.chat import re_token, re_tools, MediaUrl, mk_msg, fmt2hist, Msg, mk_tr_details
-from fastllm.types import PartType, Part
+from fastllm.types import PartType, Part, ToolCall, mk_tool_res_msg
 from .dialog import *
 
 # %% ../nbs/02_hist.ipynb #b2c5d115
@@ -205,7 +205,8 @@ def prompt_txt(self:Message, last=False):
 def to_xml(self:Message, last=False):
     "Create XML representation of this message"
     if self.msg_type == sprompt: return self.prompt_txt(last)
-    it = item2xml('markdown' if self.msg_type==snote else self.msg_type, self.content, self.ai_output, id=self.id, time=self.local_time() or None)
+    it = item2xml('markdown' if self.msg_type==snote else self.msg_type, self.content, self.ai_output,
+                  id=self.id, time=self.local_time() or None, **_dir_attrs(self.meta))
     return to_xml(it, do_escape=False)
 
 # %% ../nbs/02_hist.ipynb #e0542c55
@@ -283,6 +284,7 @@ def dlg2chat(
     return msgs
 
 # %% ../nbs/02_hist.ipynb #91b80931
+def _dotted_name(s): return bool(s) and all(p.isidentifier() for p in s.split('.'))
 def reply2dlg(pmsg):
     "Explode `pmsg`'s AI reply into a `Dialog` of note and code messages"
     sub = Dialog(pmsg.id)
@@ -294,7 +296,8 @@ def reply2dlg(pmsg):
         for p in m.content:
             if p.type==PartType.tool_use:
                 d = p.data
-                if bad := first(k for k in [d['name'], *d['arguments']] if not k.isidentifier()): raise ValueError(f"not a Python identifier: {bad}")
+                if not _dotted_name(d['name']): raise ValueError(f"not a dotted Python identifier: {d['name']}")
+                if bad := first(k for k in d['arguments'] if not k.isidentifier()): raise ValueError(f"not a Python identifier: {bad}")
                 args = ', '.join(f'{k}={v!r}' for k,v in d['arguments'].items())
                 sub.mk_message(f"{d['name']}({args})", output=code_output(trs[d['id']].text), meta=dict(tool_id=d['id']))
             elif p.type==PartType.text and p.text: sub.mk_message(p.text, msg_type=snote)
@@ -305,8 +308,10 @@ def _parse_call(src):
     "`(name, arguments)` parsed from literal call source `src`, or None if it isn't one"
     try: call = ast.parse(src.strip(), mode='eval').body
     except SyntaxError: return None
-    if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and not call.args and all(kw.arg for kw in call.keywords)): return None
-    return call.func.id, {kw.arg: literal_eval(kw.value) for kw in call.keywords}
+    if not (isinstance(call, ast.Call) and not call.args and all(kw.arg for kw in call.keywords)): return None
+    name = ast.unparse(call.func)
+    if not _dotted_name(name): return None
+    return name, {kw.arg: literal_eval(kw.value) for kw in call.keywords}
 
 def _msg2tr(m):
     "Tool-result `Part` recovered from code message `m`, whose source is the literal call"
