@@ -2,6 +2,15 @@
 
 <!-- do not remove -->
 
+## 0.0.4
+
+### New Features
+
+- Expand Codex session support (read/write/build rollouts, custom tools, thread↔dialog round-trip), add locked headless subagent runner, and support dotted tool names + lnhash view in dialog editing ([#7](https://github.com/AnswerDotAI/llmsurgery/issues/7))
+- Add compact DSL and synthetic session compaction; replace synthetic ant fixtures with real Claude Code transcripts; add structural search predicates, session naming/resolution, and Dialog↔Message backrefs ([#6](https://github.com/AnswerDotAI/llmsurgery/issues/6))
+- Add `reads_ipynb` for reading dialogs from JSON strings ([#3](https://github.com/AnswerDotAI/llmsurgery/pull/3)), thanks to [@jackhogan](https://github.com/jackhogan)
+
+
 ## 0.0.3
 
 ### New Features
