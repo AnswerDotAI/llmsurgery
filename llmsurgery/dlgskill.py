@@ -46,12 +46,12 @@ __all__ = ['msg_insert_line', 'msg_str_replace', 'msg_strs_replace', 'msg_replac
            'add_msg_magic', 'load_ipython_extension', 'reply2dlg', 'dlg2reply']
 
 # %% ../nbs/05_dlgskill.ipynb #a0aeb3fe
-import shlex, re
+import shlex, re, copy
 from fastcore.utils import *
 from fastcore.meta import splice_sig
 from fastcore.xtras import str_diff
 from fastcore.xml import to_xml
-from fastcore.nbio import item2xml, _dir_attrs
+from fastcore.nbio import item2xml
 from fastcore.tools import insert_line, str_replace, strs_replace, replace_lines, del_lines, ast_replace, lnhash
 from .dialog import *
 from .ipynb import read_ipynb, write_ipynb
@@ -117,7 +117,7 @@ def msg2xml(m, incl_out=False, trunc_out=True, ids=True):
         if trunc_out: o = truncstr(o, 512)
     else: o = ''
     it = item2xml(_t2tag.get(m.msg_type, m.msg_type), m.content, o, id=m.id if ids else None,
-                  kind=m.meta.get('rec_kind'), **_dir_attrs(m.meta))
+                  kind=m.meta.get('rec_kind'), meta=m.meta)
     return to_xml(it, do_escape=False)
 
 def view_dlg(
@@ -172,7 +172,7 @@ def find_msgs(
     dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
     msg_type:str=None, # Optional limit by type ('code', 'note', 'prompt', or 'raw')
     only_err:bool=False, # Only code messages with error outputs?
-    only_exp:bool=False, # Only messages with an nbdev `#| export` directive?
+    only_exp:bool=False, # Only exported messages (nbdev export directive in content or meta)?
     ids='', # Optionally filter by ids (comma-separated str, or list); results are always in dialog order, whatever order the ids are given
     before:int=0, # Also include n messages before each match
     after:int=0, # Also include n messages after each match
@@ -246,7 +246,7 @@ def split_msg(
     *linenos:int, # Split before each of these 1-based lines
     dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
-    "Split a message into pieces (returned as `Msgs`; the first keeps its id): one `'\\n\\n'` is absorbed at each cut (so `merge_msgs` restores blank-line-separated content byte-exactly), `meta_attrs` fields and a leading `#| export` copy to every piece, attachments follow their references, and unreferenced ones stay on the first piece"
+    "Split a message into pieces (returned as `Msgs`; the first keeps its id): one `'\\n\\n'` is absorbed at each cut (so `merge_msgs` restores blank-line-separated content byte-exactly), `meta_attrs` fields, the cell `meta`, and a leading `#| export` copy to every piece, attachments follow their references, and unreferenced ones stay on the first piece"
     d, sv = _load_dlg(dlg)
     m = d.msg(id)
     lines = m.content.splitlines()
@@ -265,7 +265,7 @@ def split_msg(
     prev, res = m, [m]
     for p,r in zip(parts[1:], refs[1:]):
         if exp and not p.startswith('#|'): p = exp.group(0) + p
-        prev = d.mk_message(p, after=prev, msg_type=m.msg_type, attachments=r, **keep)
+        prev = d.mk_message(p, after=prev, msg_type=m.msg_type, attachments=r, meta=copy.deepcopy(m.meta), **keep)
         res.append(prev)
     _save(d, sv)
     return Msgs(res)
@@ -275,14 +275,12 @@ def merge_msgs(
     *ids, # Adjacent messages or ids to merge
     dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
-    "Merge into the first message (returned, keeping its id): same-type merges keep the type, mixed become a note via `merge_content`; outputs clear, attachments combine"
+    "Merge into the first message (returned, keeping its id): same-type merges keep the type, mixed become a note via `merge_content`; metas and directives merge first-wins via `merge_parts`, outputs clear, attachments combine"
     d, sv = _load_dlg(dlg)
     ms = [d.msg(i) for i in ids]
     mtype = ms[0].msg_type if len(set(m.msg_type for m in ms))==1 else snote
-    srcs = [m.merge_content(mtype) for m in ms]
-    stripped = [strip_export(s) for s in srcs]
-    if mtype==scode and stripped != srcs: srcs = ['#| export\n'+stripped[0], *stripped[1:]]  # any exported piece exports the merge
-    ms[0].update(content='\n\n'.join(srcs), output=None, msg_type=mtype, attachments=L(ms).attrgot('attachments').concat())
+    content, meta = merge_parts(ms, [m.merge_content(mtype) for m in ms])
+    ms[0].update(content=content, meta=meta, output=None, msg_type=mtype, attachments=L(ms).attrgot('attachments').concat())
     d.remove_msgs(ms[1:])
     _save(d, sv)
     return ms[0]

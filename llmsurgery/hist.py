@@ -18,7 +18,7 @@ from itertools import chain
 from fastcore.utils import *
 from fastcore.ansi import strip_ansi
 from fastcore.xtras import detect_mime
-from fastcore.nbio import preferred_msg_out, concat_streams, item2xml, _dir_attrs
+from fastcore.nbio import preferred_msg_out, concat_streams, item2xml
 from fastcore.xml import to_xml, Media, MediaUnavailable
 from fastllm.chat import re_token, re_tools, MediaUrl, mk_msg, fmt2hist, Msg, mk_tr_details
 from fastllm.types import PartType, Part, ToolCall, mk_tool_res_msg
@@ -206,7 +206,7 @@ def to_xml(self:Message, last=False):
     "Create XML representation of this message"
     if self.msg_type == sprompt: return self.prompt_txt(last)
     it = item2xml('markdown' if self.msg_type==snote else self.msg_type, self.content, self.ai_output,
-                  id=self.id, time=self.local_time() or None, **_dir_attrs(self.meta))
+                  id=self.id, time=self.local_time() or None, meta=self.meta)
     return to_xml(it, do_escape=False)
 
 # %% ../nbs/02_hist.ipynb #e0542c55

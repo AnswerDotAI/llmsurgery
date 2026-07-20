@@ -8,12 +8,13 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/dialog.html.md"""
 __all__ = ['smsg_types', 'scode', 'snote', 'sprompt', 'sraw', 'tiny_png', 'add_id_hash', 'Msgs', 'Dialog', 'mk_output',
            'mk_displayobj', 'displayobj', 'mk_code_output', 'code_output', 'prompt_output', 'Message', 'get_msg',
            'header_info', 'section_msgs', 'get_output_mds', 'mk_jmsg', 'mk_stream', 'mk_error', 'mk_dispdata',
-           'mk_execresult', 'output_from_msg', 'strip_export', 'dlg2py', 'ruuid4', 'Attachment']
+           'mk_execresult', 'output_from_msg', 'dlg2py', 'merge_metas', 'merge_parts', 'ruuid4', 'Attachment']
 
 # %% ../nbs/00_dialog.ipynb #5571d07a
 import base64, copy, random, weakref
 from json import loads, dumps
 from fastcore.utils import *
+from fastcore.nbio import mk_cell
 
 # %% ../nbs/00_dialog.ipynb #9d79a4b9
 smsg_types = scode,snote,sprompt,sraw = "code","note","prompt","raw"
@@ -368,18 +369,21 @@ def add_output(self:Message,
     self.output.append(out)
 
 # %% ../nbs/00_dialog.ipynb #08680316
-_re_exp = re.compile(r'#\|\s*exports?[^\n]*\n?')
+@patch(as_prop=True)
+def directives(self:Message):
+    "nbdev directives from content comments and the meta `nbdev` dict, comments winning"
+    return mk_cell(self.content, metadata=self.meta).directives
 
-def strip_export(s):
-    "Content `s` without its leading `#| export` directive line, if any"
-    m = _re_exp.match(s)
-    return s[m.end():] if m else s
-
-def _get_exported(self): return bool(_re_exp.match(self.content))
+def _get_exported(self): return 'export' in self.directives or 'exports' in self.directives
 def _set_exported(self, v):
-    if bool(v) != self.exported: self.content = '#| export\n'+self.content if v else strip_export(self.content)
+    c = mk_cell(self.content, metadata=self.meta)
+    d = c.directives
+    val = d.get('export', d.get('exports'))
+    c.directives = {k:x for k,x in d.items() if k not in ('export','exports')}
+    if self.content != c.source: self.content = c.source
+    if v: self.meta.setdefault('nbdev',{})['export'] = val or 'true'
 Message.exported = property(_get_exported, _set_exported,
-    doc="Whether this message's content carries an nbdev `#| export` directive; assigning edits the content to match")
+    doc="Whether this message carries an nbdev export directive, in content or meta; assigning writes the meta form, migrating any content directive")
 
 def dlg2py(dlg):
     "The exported code of `dlg`, as a python source string"
@@ -396,6 +400,29 @@ def merge_content(self:Message,
     if self.msg_type==scode: return f'```python\n{self.content}\n```'
     if self.msg_type==sraw: return f'```plaintext\n{self.content}\n```'
     return self.content
+
+# %% ../nbs/00_dialog.ipynb #c201c787
+def merge_metas(metas):
+    "First-wins merge of cell metadata dicts, merging the `nbdev` directives dict one level deeper"
+    res,nbd = {},{}
+    for meta in metas:
+        for k,v in (meta or {}).items():
+            if k=='nbdev':
+                for dk,dv in v.items(): nbd.setdefault(dk,dv)
+            else: res.setdefault(k,v)
+    if nbd: res['nbdev'] = nbd
+    return res
+
+def merge_parts(msgs, srcs=None):
+    "Merged `(content, meta)` for combining `msgs` (optionally with per-message rendered `srcs`): later messages' directive lines fold into the merged meta, first message winning conflicts"
+    if srcs is None: srcs = [m.content for m in msgs]
+    cells = [mk_cell(s) for s in srcs]
+    for c in cells[1:]: c.remove_directives()
+    meta = merge_metas([{**m.meta, 'nbdev': {k: x or 'true' for k,x in m.directives.items()}} for m in msgs])
+    nbd = {k:x for k,x in meta.get('nbdev',{}).items() if k not in cells[0].directives}
+    if nbd: meta['nbdev'] = nbd
+    else: meta.pop('nbdev', None)
+    return '\n\n'.join(c.source for c in cells), meta
 
 # %% ../nbs/00_dialog.ipynb #c872b4ee
 _out_types = {'stream','display_data','execute_result','error'}
