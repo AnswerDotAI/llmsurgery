@@ -202,8 +202,8 @@ def prompt_txt(self:Message, last=False):
     return self.content
 
 @patch
-def to_xml(self:Message, last=False):
-    "Create XML representation of this message"
+def hist_xml(self:Message, last=False):
+    "History XML for this message (the concise `Message.to_xml` is dlgskill's converter; this rendering adds time and serves `to_parts`)"
     if self.msg_type == sprompt: return self.prompt_txt(last)
     it = item2xml('markdown' if self.msg_type==snote else self.msg_type, self.content, self.ai_output,
                   id=self.id, time=self.local_time() or None, meta=self.meta)
@@ -231,7 +231,7 @@ def to_parts(self:Message, aim_info:dict, last=False):
     "Convert message to a list of history parts: media, then XML text."
     parts = []
     if media := self.to_media(aim_info): parts.extend(media)
-    if mxml := self.to_xml(last): parts.append(mxml)
+    if mxml := self.hist_xml(last): parts.append(mxml)
     return parts
 
 # %% ../nbs/02_hist.ipynb #0b6318f6
@@ -287,7 +287,7 @@ def dlg2chat(
 def _dotted_name(s): return bool(s) and all(p.isidentifier() for p in s.split('.'))
 def reply2dlg(pmsg):
     "Explode `pmsg`'s AI reply into a `Dialog` of note and code messages"
-    sub = Dialog(pmsg.id)
+    sub = Dialog(name=pmsg.id)
     sub.msg_cls = type(pmsg)
     msgs = fmt2hist(pmsg.ai_res)
     trs = {p.data['id']:p for m in msgs if m.role=='tool' for p in m.content}

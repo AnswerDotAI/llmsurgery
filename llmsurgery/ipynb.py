@@ -135,7 +135,7 @@ def from_cells(self:Dialog, cells):
 def reads_ipynb(txt, cls=Dialog, name='dialog'):
     "Read a dialog from notebook JSON string `txt`, constructing via `cls`"
     nb = nbformat.reads(txt, as_version=nbformat.NO_CONVERT)
-    return cls(name, meta=dict(nb.get('metadata', {}))).from_cells(nb.cells)
+    return cls(name=name, meta=dict(nb.get('metadata', {}))).from_cells(nb.cells)
 
 # %% ../nbs/01_ipynb.ipynb #7e8912e8
 def read_ipynb(fname, cls=Dialog, name=None):

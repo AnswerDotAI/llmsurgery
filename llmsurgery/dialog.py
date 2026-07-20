@@ -6,9 +6,10 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/dialog.html.md"""
 
 # %% auto #0
 __all__ = ['smsg_types', 'scode', 'snote', 'sprompt', 'sraw', 'tiny_png', 'add_id_hash', 'Msgs', 'Dialog', 'mk_output',
-           'mk_displayobj', 'displayobj', 'mk_code_output', 'code_output', 'prompt_output', 'Message', 'get_msg',
-           'header_info', 'section_msgs', 'get_output_mds', 'mk_jmsg', 'mk_stream', 'mk_error', 'mk_dispdata',
-           'mk_execresult', 'output_from_msg', 'dlg2py', 'merge_metas', 'merge_parts', 'ruuid4', 'Attachment']
+           'mk_displayobj', 'displayobj', 'mk_code_output', 'code_output', 'prompt_output', 'Message', 'MsgRow',
+           'MsgRows', 'get_msg', 'header_info', 'section_msgs', 'get_output_mds', 'mk_jmsg', 'mk_stream', 'mk_error',
+           'mk_dispdata', 'mk_execresult', 'output_from_msg', 'dlg2py', 'copy_export', 'merge_metas', 'merge_parts',
+           'ruuid4', 'Attachment']
 
 # %% ../nbs/00_dialog.ipynb #5571d07a
 import base64, copy, random, weakref
@@ -50,12 +51,14 @@ class Msgs(L):
 class Dialog(BasicRepr):
     "A named, ordered list of messages"
     def __init__(self,
-        name, # Dialog name, usually the file stem
-        messages=None, # Initial `Message`s
+        messages=None, # Initial `Message`s, shared not copied: a wrap of live messages is a view over the originals
+        name='', # Dialog name, usually the file stem
         meta=None, # Notebook-level metadata dict, carried verbatim through save/load
     ):
+        if isinstance(messages, str): raise TypeError("Dialog(messages, name): first arg is the messages - pass name='...' by keyword")
         self.name,self.messages,self.meta = str(name),Msgs(listify(messages)),dict(meta or {})
-        for m in self.messages: m.dlg = self
+        for m in self.messages:  # claim only orphans: wrapping live messages must not steal them from their real dialog
+            if m.dlg is None: m.dlg = self
 
     def _repr_markdown_(self):
         msgs = ''
@@ -184,11 +187,25 @@ def _repr_markdown_(self:Message):
 def preview(self:Message,
     maxlen:int=120, # Maximum characters in the line
 ):
-    "Escaped one-line summary of this message, the row format for `Msgs` displays"
-    s = f"{self.id}:{self.msg_type}: {self.content}"
+    "Escaped one-line summary, the row format for `Msgs` displays: `id:t:content` (t: c=code n=note p=prompt r=raw)"
+    s = f"{self.id}:{self.msg_type[0]}:{self.content}"
     if self.msg_type==sprompt and self.ai_res: s += f" ⇒ reply({len(self.ai_res)})"
     elif self.output: s += f" ⇒ out({len(str(self.output))})"
     return truncstr(s.replace('\n', '\\n'), maxlen)
+
+# %% ../nbs/00_dialog.ipynb #a72644ce
+class MsgRow:
+    "Snapshot of one message: `id`, `msg_type`, `content`, `out` (reply or output text), and `meta`; shown as its preview line"
+    def __init__(self, m, maxlen=120):
+        self.id,self.msg_type,self.content = m.id,m.msg_type,m.content
+        self.meta = copy.deepcopy(m.meta)
+        self.out = (m.ai_res or '') if m.msg_type==sprompt else str(m.output or '')
+        self._pv = m.preview(maxlen)
+    def __repr__(self): return self._pv
+
+class MsgRows(list):
+    "A list of `MsgRow`s, one preview line each"
+    def __repr__(self): return '\n'.join(repr(o) for o in self)
 
 # %% ../nbs/00_dialog.ipynb #e4fb159d
 @patch
@@ -388,6 +405,14 @@ Message.exported = property(_get_exported, _set_exported,
 def dlg2py(dlg):
     "The exported code of `dlg`, as a python source string"
     return '\n\n'.join(m.content for m in dlg.messages if m.msg_type==scode and m.exported)
+
+# %% ../nbs/00_dialog.ipynb #0db3221b
+_re_exp = re.compile(r'#\|\s*exports?[^\n]*\n')
+
+def copy_export(s, src):
+    "Prepend `src`'s leading export directive line to `s`, unless `s` already starts with a `#|` directive"
+    m = _re_exp.match(src)
+    return m.group(0)+s if m and not s.startswith('#|') else s
 
 # %% ../nbs/00_dialog.ipynb #860657a4
 @patch

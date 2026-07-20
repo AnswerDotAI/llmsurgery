@@ -7,20 +7,20 @@ Use this whenever the question or edit concerns a notebook's content: messages, 
 Notebook work happens at three levels, and picking the right level is most of using this module well:
 
 - Content (this module): what the messages say and how they change. `summary_dlg`, `find_msgs`, `view_dlg`, the message editing operations, and `reply2dlg`/`dlg2reply` for a prompt's reply.
-- Representation (`fastcore.nbio`, formerly `execnb.nbio`): which keys exist, whether a file is schema-valid, whether bytes changed. Start with `validate_nb`/`validate_cell`, which name the offending cell; use `read_nb` directly when the question is about the dict itself.
+- Representation (`fastcore.nbio`, formerly `execnb.nbio`): which keys exist, whether a file is schema-valid, whether bytes changed. Start with `validate_nb`/`validate_cell`, which name the offending cell; use `read_nb` directly when the question is about the dict itself. For *plain* notebooks (no dialog semantics), nbio's `Notebook`/`NbCell` objects and `cell_*` functions are the content surface, and this module's word choice marks the layer: cells for notebooks, messages for dialogs.
 - Raw text: only when the file will not parse at all.
 
 Dropping a level is correct exactly when the question is about the representation rather than the content ("why does Jupyter reject this file?", "did that write change any bytes?"). Treat each drop as a signal, though: needing nbio or raw JSON to answer a content question means a higher-level tool was missing. Re-read this module's docs to check it truly is missing, and then propose adding it rather than repeating the workaround.
 
 ## Core APIs
 
-Every function takes `dlg` as a `Dialog`, an ipynb path, or None meaning the current dialog file (`set_dlg`/`cur_dlg`); changes persist automatically only for file-backed dialogs.
+Every operation has two shapes with one contract each. The *function* is a transaction: `dlg=` takes an ipynb path (or None, meaning the current dialog file: `set_dlg`), and the call reads the file, applies, writes, and returns its result - a diff for edits, `MsgRow` snapshots for searches. The *method* is a session: it lives on a held `Dialog` or `Message`, mutates in memory, and saves only on an explicit `dlg.save()`. The method is the function minus its address arguments (`msg_str_replace(id, ..., dlg=p)` ⟷ `m.str_replace(...)`; `find_msgs(pat, dlg=p)` ⟷ `d.find_msgs(pat)`), so each family is learned once. Wrapping any message list in an ephemeral `Dialog(msgs)` makes the whole session surface available on it; use one shape at a time per file, saving before switching to functions and reopening after.
 
-- `summary_dlg(dlg)`: one preview line per message.
-- `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, ids, or a `pred` (`symdef_finder`/`symref_finder`/`ast_finder` build structural ones); `context` defaults to 1 (the neighbouring message usually explains the match). Returns live `Message` objects in a `Msgs` list (`.show(maxlen)` for display control), so results are edited directly rather than re-addressed. Every message carries a `dlg` backref to its owning `Dialog`, so dialog-level operations are always in reach from a message in hand (e.g. `m.dlg.save()` after mutating `m.output` directly).
-- `view_dlg(dlg_or_msgs)` / `view_msg(id)` / `view_msgs(*ids)` / `msg2xml(m)`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section); `view_dlg` also renders a `find_msgs` result.
-- Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`; the `%%add_msg` magic takes verbatim bodies.
-- Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal); `python_msgs`/`ast_msgs` for structural rewrites; `lnhashview_msg`/`exhash_msg` for hash-verified line edits (`lnhashview_msg` is `view_msg(..., lnhashs=True)`; only `exhash_msg` needs the `exhash` package).
+- `summary_dlg(dlg)` / `d.summary()`: one preview line per message, `id:t:content` (t: c=code n=note p=prompt r=raw).
+- `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, ids, or a `pred` (`symdef_finder`/`symref_finder`/`ast_finder` build structural ones); `context` defaults to 1 (the neighbouring message usually explains the match). Returns `MsgRow` snapshots (`id`, `msg_type`, `content`, `out`, `meta`), shown as preview lines. `d.find_msgs(...)` returns live `Message` objects in a `Msgs` list instead, edited directly rather than re-addressed. Every live message carries a `dlg` backref to its owning `Dialog`, so dialog-level operations are always in reach from a message in hand (e.g. `m.dlg.save()` after mutating `m.output` directly).
+- `view_dlg(dlg)` / `d.view()` / `view_msg(id)` / `m.view()` / `view_msgs(*ids)` / `msg2xml(m)` / `m.to_xml()`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section).
+- Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`, with session twins `d.move_msgs`, `m.split`, `d.merge_msgs`, `d.copy_msgs`/`d.cut_msgs`/`d.paste_msgs` (session adds go through `d.mk_message`, deletes through `d.remove_msgs`); the `%%add_msg` magic takes verbatim bodies.
+- Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines`, `msg_ast_replace` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal), with the same names as `Message` methods for in-memory editing; `lnhashview_msg`/`msg_exhash` (and `m.lnhashview()`/`m.exhash()`) for hash-verified line edits (`lnhashview_msg` is `view_msg(..., lnhashs=True)`; only the exhash pair needs the `exhash` package).
 - `reply2dlg(pmsg)`/`dlg2reply(sub)`: explode a reply into note/code messages and back; byte-exact for fmt2hist-clean replies.
 
 ## Idiomatic usage
@@ -30,7 +30,7 @@ Start by registering the notebook: `set_dlg(path)` makes every function here def
 - `summary_dlg()` first for anything sizable: a cheap one-line-per-message map. `view_dlg()` when you need the full story in order with ids. Read a notebook in full before describing or changing what it does - the interleaved prose, examples, and stored outputs (`incl_out=True`) are the design rationale.
 - Read before probing: an ad-hoc "what happens if..." experiment usually re-derives, more slowly and less reliably, what an existing example cell already shows. If after reading you still need an experiment, that's a gap in the notebook - add it as a proper example cell so the next reader doesn't repeat it.
 - `find_msgs` is the targeted view: keep the default `context=1` (the neighbouring markdown usually explains the match), and `ids=` with context is the positional query ("does A precede B?", "what's the idiom around here?"). Name questions are structural, not textual: `symdef_finder`/`symref_finder`/`ast_finder` beat regexes over binding syntax. Where available, rgapi's `nbrg` searches cell sources across files and returns the cell ids these functions take.
-- Edit at the right level: `add_msg`/`%%add_msg` for new messages; within a message, prefer hash-verified addressing (`lnhashview_msg`/`exhash_msg`, or exhash's `lnhashview_cell`/`exhash_cell` by path and cell id) - view with the lnhash variant the moment an edit is plausible, so the view doubles as the edit's address book. The plain `msg_*` editors fit where exhash can't express the edit, e.g. one `msg_str_replace` across an id list. Never splice via `read_nb`/`write_nb` internals: if a primitive is missing here, stop and propose adding it.
+- Edit at the right level: `add_msg`/`%%add_msg` for new messages; within a message, prefer hash-verified addressing (`lnhashview_msg`/`msg_exhash`, or exhash's `lnhashview_cell`/`cell_exhash` by path and cell id) - view with the lnhash variant the moment an edit is plausible, so the view doubles as the edit's address book. The plain `msg_*` editors fit where exhash can't express the edit, e.g. one `msg_str_replace` across an id list. Never splice via `read_nb`/`write_nb` internals: if a primitive is missing here, stop and propose adding it.
 - Every editing operation returns a diff: read it - that's the immediate verification. `dlg.validate()` catches model-level damage early; `dlg.save()` writes back.
 - Don't hand-roll `json`/`grep`/`bash` over ipynb files for anything these functions cover, and don't wrap calls in defensive scaffolding (`hasattr`, `try/except`) - call directly and read the bare result.
 
@@ -39,16 +39,16 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/dlgskill.html.md"""
 # AUTOGENERATED! DO NOT EDIT! File to edit: ../nbs/05_dlgskill.ipynb.
 
 # %% auto #0
-__all__ = ['msg_insert_line', 'msg_str_replace', 'msg_strs_replace', 'msg_replace_lines', 'msg_del_lines', 'set_dlg', 'cur_dlg',
-           'summary_dlg', 'msg2xml', 'view_dlg', 'view_msg', 'view_msgs', 'find_msgs', 'move_msgs', 'split_msg',
-           'merge_msgs', 'copy_msgs', 'cut_msgs', 'paste_msgs', 'python_msgs', 'ast_msgs', 'symdef_finder',
-           'symref_finder', 'ast_finder', 'lnhashview_msg', 'exhash_msg', 'add_msg', 'del_msgs', 'create_dlg',
+__all__ = ['msg_insert_line', 'msg_str_replace', 'msg_strs_replace', 'msg_replace_lines', 'msg_del_lines', 'msg_ast_replace',
+           'set_dlg', 'cur_dlg', 'summary_dlg', 'msg2xml', 'view_dlg', 'view_msg', 'view_msgs', 'find_msgs',
+           'move_msgs', 'split_msg', 'merge_msgs', 'copy_msgs', 'cut_msgs', 'paste_msgs', 'symdef_finder',
+           'symref_finder', 'ast_finder', 'lnhashview_msg', 'msg_exhash', 'add_msg', 'del_msgs', 'create_dlg',
            'add_msg_magic', 'load_ipython_extension', 'reply2dlg', 'dlg2reply']
 
 # %% ../nbs/05_dlgskill.ipynb #a0aeb3fe
 import shlex, re, copy
 from fastcore.utils import *
-from fastcore.meta import splice_sig
+from fastcore.meta import splice_sig, delegates
 from fastcore.xtras import str_diff
 from fastcore.xml import to_xml
 from fastcore.nbio import item2xml
@@ -69,21 +69,24 @@ def set_dlg(
     _cur_dlg = Path(fname)
     return _cur_dlg
 
-def cur_dlg(): return _cur_dlg
+def cur_dlg():
+    "A fresh `Dialog` read from the current dialog file (None if unset): the session-side entry to the ambient default"
+    return read_ipynb(_cur_dlg) if _cur_dlg else None
 
 def _to_dlg(x):
-    "`x` as a `Dialog`: pass through, or read the ipynb at that path (None: the current dialog file)"
+    "The dialog file `x` (None: the current dialog file), read fresh from disk"
+    if isinstance(x, Dialog): raise TypeError('dlg= takes an ipynb path; on a live Dialog, call the method instead')
     if x is None: x = _cur_dlg
-    if x is None: raise ValueError('No dialog: pass one, or call set_dlg() first')
-    return x if isinstance(x, Dialog) else read_ipynb(x)
+    if x is None: raise ValueError('No dialog: pass a path, or call set_dlg() first')
+    return read_ipynb(x)
 
 def _load_dlg(x):
-    "`(dialog, we_loaded)`: like `_to_dlg`, plus whether this call read it from disk (and so should save it)"
-    return _to_dlg(x), not isinstance(x, Dialog)
+    "`(dialog, True)`: read `x` from disk; the second element marks it ours to save"
+    return _to_dlg(x), True
 
-def _save(dlg, we_loaded):
-    "Persist only when this call loaded `dlg` from a path; a live `Dialog` argument is the caller's to save"
-    if we_loaded: dlg.save()
+def _save(dlg, sv=True):
+    "Write back to the file this call loaded from"
+    if sv: dlg.save()
 
 # %% ../nbs/05_dlgskill.ipynb #b120f853
 @patch
@@ -98,13 +101,19 @@ def msg(self:Dialog,
     return ms[0]
 
 # %% ../nbs/05_dlgskill.ipynb #def6dd98
-def summary_dlg(
-    dlg=None, # A `Dialog`, ipynb path, or iterable of `Message`s (e.g. a `find_msgs` result); current dialog file if None
+@patch
+def summary(self:Dialog,
     maxlen:int=120, # Maximum characters per line
 ):
-    "One `preview` line per message"
-    ms = Msgs(dlg) if isinstance(dlg, (list, L)) else _to_dlg(dlg).messages
-    return ms.show(maxlen)
+    "One `preview` line per message: `id:t:content` (t: c=code n=note p=prompt r=raw)"
+    return self.messages.show(maxlen)
+
+def summary_dlg(
+    dlg=None, # An ipynb path; the current dialog file if None
+    maxlen:int=120, # Maximum characters per line
+):
+    "One `preview` line per message of the dialog file"
+    return _to_dlg(dlg).summary(maxlen)
 
 # %% ../nbs/05_dlgskill.ipynb #9d26ea0f
 _t2tag = dict(note='markdown')
@@ -120,44 +129,64 @@ def msg2xml(m, incl_out=False, trunc_out=True, ids=True):
                   kind=m.meta.get('rec_kind'), meta=m.meta)
     return to_xml(it, do_escape=False)
 
-def view_dlg(
-    dlg=None, # A `Dialog`, ipynb path, or iterable of `Message`s (e.g. a `find_msgs` result); current dialog file if None
+@patch
+def to_xml(self:Message, incl_out=False, trunc_out=True, ids=True):
+    "This message as concise XML (`msg2xml`)"
+    return msg2xml(self, incl_out, trunc_out, ids)
+
+@patch
+def view(self:Dialog,
     incl_out:bool=False, # Include code outputs?
     only_errors:bool=False, # Show only code messages with error outputs (implies `incl_out`)?
     trunc_out:bool=True, # Truncate each output to ~512 chars?
 ):
-    "Dialog (or a selection of its messages) as concise XML"
-    if isinstance(dlg, (list, L)): nm, ms = 'msgs', list(dlg)
-    else:
-        d = _to_dlg(dlg)
-        nm, ms = d.name, d.messages
-    if only_errors: ms = [m for m in ms if m.has_error]
+    "This dialog as concise XML"
+    ms = [m for m in self.messages if m.has_error] if only_errors else self.messages
     body = ''.join(msg2xml(m, incl_out or only_errors, trunc_out) for m in ms)
-    return PrettyString(f'<dialog name="{nm}">{body}</dialog>')
+    return PrettyString(f'<dialog name="{self.name}">{body}</dialog>')
+
+def view_dlg(
+    dlg=None, # An ipynb path; the current dialog file if None
+    incl_out:bool=False, # Include code outputs?
+    only_errors:bool=False, # Show only code messages with error outputs (implies `incl_out`)?
+    trunc_out:bool=True, # Truncate each output to ~512 chars?
+):
+    "The dialog file as concise XML"
+    return _to_dlg(dlg).view(incl_out, only_errors, trunc_out)
 
 # %% ../nbs/05_dlgskill.ipynb #04cc9cbd
-def view_msg(
-    m, # A `Message`, or an id looked up in `dlg`
-    dlg=None, # `Dialog` or path when `m` is an id; the current dialog file if None
+@patch
+def view(self:Message,
     nums:bool=True, # Show line numbers?
     start_line:int=1, # Starting line to view
     end_line:int=None, # End line (defaults to last line if None; -1 for EOF)
     lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
 ):
-    "Show message content with optional line numbers or exhash addresses"
-    if not isinstance(m, Message): m = _to_dlg(dlg).msg(m)
-    lines = m.content.splitlines()
+    "This message's content with optional line numbers or exhash addresses"
+    lines = self.content.splitlines()
     lines = lines[start_line-1:len(lines) if end_line in (None,-1) else end_line]
     return PrettyString('\n'.join((lnhash(i,l)+l if lnhashs else f'{i}: {l}' if nums else l) for i,l in enumerate(lines, start_line)))
 
+def view_msg(
+    id, # Message id, looked up in `dlg` (unique prefixes allowed)
+    dlg=None, # An ipynb path; the current dialog file if None
+    nums:bool=True, # Show line numbers?
+    start_line:int=1, # Starting line to view
+    end_line:int=None, # End line (defaults to last line if None; -1 for EOF)
+    lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
+):
+    "Show a message's content with optional line numbers or exhash addresses"
+    return _to_dlg(dlg).msg(id).view(nums, start_line, end_line, lnhashs)
+
 def view_msgs(
-    *ms, # `Message`s or ids
-    dlg=None, # `Dialog` or path for id lookup; the current dialog file if None
+    *ids, # Message ids
+    dlg=None, # An ipynb path; the current dialog file if None
     nums:bool=True, # Show line numbers?
     lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
 ):
     "Show several messages, each preceded by a `# msg <id>` header"
-    return PrettyString('\n'.join(f"# msg {(m if isinstance(m, Message) else _to_dlg(dlg).msg(m)).id}\n{view_msg(m, dlg, nums, lnhashs=lnhashs)}" for m in ms))
+    d = _to_dlg(dlg)
+    return PrettyString('\n'.join(f"# msg {(m := d.msg(i)).id}\n{m.view(nums, lnhashs=lnhashs)}" for i in ids))
 
 # %% ../nbs/05_dlgskill.ipynb #4bf78327
 def _match_head(m, want):
@@ -167,9 +196,9 @@ def _match_head(m, want):
     if want.startswith('#'): return fl.rstrip()==want.rstrip()
     return fl.lstrip('#').strip()==want.strip()
 
-def find_msgs(
+@patch
+def find_msgs(self:Dialog,
     re_pattern:str='', # Regex over content (a prompt's reply included), DOTALL+MULTILINE; an invalid regex matches literally
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
     msg_type:str=None, # Optional limit by type ('code', 'note', 'prompt', or 'raw')
     only_err:bool=False, # Only code messages with error outputs?
     only_exp:bool=False, # Only exported messages (nbdev export directive in content or meta)?
@@ -184,11 +213,8 @@ def find_msgs(
     header_section:str=None, # Return the section starting with this heading, plus its children
     pred:callable=None, # Extra match criterion, e.g. from `symdef_finder`/`symref_finder`/`ast_finder`, or host-specific flags
 )->Msgs: # Live messages, so results can be edited directly
-    "Find messages in `dlg` (a `Dialog`, path, or iterable of messages) matching all the given criteria"
-    if isinstance(dlg, (list, L)): d, ms = None, Msgs(dlg)
-    else:
-        d = _to_dlg(dlg)
-        ms = d.messages
+    "Find this dialog's messages matching all the given criteria"
+    ms = self.messages
     if context is None: context = 0 if headers_only else 1
     if header_section is not None:
         head = first(m for m in ms if _match_head(m, header_section))
@@ -200,8 +226,7 @@ def find_msgs(
         except re.error: use_regex = False
     pat = re.compile(re_pattern if use_regex else re.escape(re_pattern), flags) if re_pattern else None
     if isinstance(ids, str): ids = [o for o in ids.split(',') if o.strip()]
-    if ids: idset = {d.msg(i.strip()).id for i in ids} if d else {i.strip() for i in ids}
-    else: idset = None
+    idset = {self.msg(i.strip()).id for i in ids} if ids else None
     def _txt(m): return m.content + ('\n'+m.ai_res if m.msg_type==sprompt and m.ai_res else '')
     def _ok(m):
         if headers_only and not m.header_level(): return False
@@ -219,107 +244,164 @@ def find_msgs(
         hits = sorted(keep)
     return Msgs([ms[i] for i in hits])
 
+@delegates(Dialog.find_msgs)
+def find_msgs(
+    re_pattern:str='', # Regex over content (a prompt's reply included), DOTALL+MULTILINE; an invalid regex matches literally
+    dlg=None, # An ipynb path; the current dialog file if None
+    **kwargs,
+)->MsgRows: # Snapshot rows (`id`, `msg_type`, `content`, `out`, `meta`), shown as preview lines
+    "Find messages in the dialog file matching all the given criteria; for live results, call `Dialog.find_msgs`"
+    return MsgRows(MsgRow(m) for m in _to_dlg(dlg).find_msgs(re_pattern, **kwargs))
+
 # %% ../nbs/05_dlgskill.ipynb #1afa6ffc
-def move_msgs(
+@patch
+def move_msgs(self:Dialog,
     ids, # Message(s) or id(s) to move
     before=None, # Move before this message or id
     after=None, # Move after this message or id
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
     "Move messages, keeping their relative order; returns them"
-    d, sv = _load_dlg(dlg)
     if (before is None) == (after is None): raise ValueError('Exactly one of before/after required')
-    ms = Msgs([d.msg(i) for i in listify(ids)])
-    d.remove_msgs(ms)
-    idx = d.messages.index(d.msg(before if before is not None else after)) + (after is not None)
-    d.messages[idx:idx] = ms
-    _save(d, sv)
+    ms = Msgs([self.msg(i) for i in listify(ids)])
+    self.remove_msgs(ms)
+    idx = self.messages.index(self.msg(before if before is not None else after)) + (after is not None)
+    self.messages[idx:idx] = ms
     return ms
+
+def move_msgs(
+    ids, # Message id(s) to move
+    before=None, # Move before this message or id
+    after=None, # Move after this message or id
+    dlg=None, # An ipynb path; the current dialog file if None
+):
+    "Move messages in the dialog file, keeping their relative order; returns them"
+    d = _to_dlg(dlg)
+    res = d.move_msgs(ids, before=before, after=after)
+    _save(d)
+    return res
 
 # %% ../nbs/05_dlgskill.ipynb #4358a197
 def _atts_for(content, att_map):
     "The attachments from `att_map` whose ids are referenced in `content`"
     return [a for aid,a in att_map.items() if aid in content]
 
-def split_msg(
-    id, # Message or id to split
+@patch
+def split(self:Message,
     *linenos:int, # Split before each of these 1-based lines
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
-    "Split a message into pieces (returned as `Msgs`; the first keeps its id): one `'\\n\\n'` is absorbed at each cut (so `merge_msgs` restores blank-line-separated content byte-exactly), `meta_attrs` fields, the cell `meta`, and a leading `#| export` copy to every piece, attachments follow their references, and unreferenced ones stay on the first piece"
-    d, sv = _load_dlg(dlg)
-    m = d.msg(id)
-    lines = m.content.splitlines()
+    "Split this message into pieces (returned as `Msgs`; the first keeps its id): one `'\\n\\n'` is absorbed at each cut (so `merge_msgs` restores blank-line-separated content byte-exactly), `meta_attrs` fields, the cell `meta`, and a leading `#| export` copy to every piece, attachments follow their references, and unreferenced ones stay on the first piece"
+    d = self.dlg
+    if d is None: raise ValueError('message is not in a dialog')
+    lines = self.content.splitlines()
     cuts = [0, *[l-1 for l in linenos], len(lines)]
     parts = ['\n'.join(lines[a:b]) for a,b in zip(cuts, cuts[1:])]
     for i in range(len(parts)-1):  # each cut absorbs the '\n\n' that a later merge re-inserts
         if   parts[i].endswith('\n'):     parts[i] = parts[i][:-1]
         elif parts[i+1].startswith('\n'): parts[i+1] = parts[i+1][1:]
-    exp = re.match(r'#\|\s*exports?[^\n]*\n', m.content)
-    keep = {a: getattr(m, a) for a in m.meta_attrs if hasattr(m, a)}
-    att_map = {a.id: a for a in m.attachments}
+    src = self.content
+    keep = {a: getattr(self, a) for a in self.meta_attrs if hasattr(self, a)}
+    att_map = {a.id: a for a in self.attachments}
     refs = [_atts_for(p, att_map) for p in parts]
     used = {a.id for r in refs for a in r}
-    refs[0] += [a for a in m.attachments if a.id not in used]
-    m.content, m.attachments = parts[0], refs[0]
-    prev, res = m, [m]
+    refs[0] += [a for a in self.attachments if a.id not in used]
+    self.content, self.attachments = parts[0], refs[0]
+    prev, res = self, [self]
     for p,r in zip(parts[1:], refs[1:]):
-        if exp and not p.startswith('#|'): p = exp.group(0) + p
-        prev = d.mk_message(p, after=prev, msg_type=m.msg_type, attachments=r, meta=copy.deepcopy(m.meta), **keep)
+        p = copy_export(p, src)
+        prev = d.mk_message(p, after=prev, msg_type=self.msg_type, attachments=r, meta=copy.deepcopy(self.meta), **keep)
         res.append(prev)
-    _save(d, sv)
     return Msgs(res)
 
+def split_msg(
+    id, # Message id to split
+    *linenos:int, # Split before each of these 1-based lines
+    dlg=None, # An ipynb path; the current dialog file if None
+):
+    "Split a message in the dialog file (see `Message.split`)"
+    d = _to_dlg(dlg)
+    res = d.msg(id).split(*linenos)
+    _save(d)
+    return res
 
-def merge_msgs(
+@patch
+def merge_msgs(self:Dialog,
     *ids, # Adjacent messages or ids to merge
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
     "Merge into the first message (returned, keeping its id): same-type merges keep the type, mixed become a note via `merge_content`; metas and directives merge first-wins via `merge_parts`, outputs clear, attachments combine"
-    d, sv = _load_dlg(dlg)
-    ms = [d.msg(i) for i in ids]
+    ms = [self.msg(i) for i in ids]
     mtype = ms[0].msg_type if len(set(m.msg_type for m in ms))==1 else snote
     content, meta = merge_parts(ms, [m.merge_content(mtype) for m in ms])
     ms[0].update(content=content, meta=meta, output=None, msg_type=mtype, attachments=L(ms).attrgot('attachments').concat())
-    d.remove_msgs(ms[1:])
-    _save(d, sv)
+    self.remove_msgs(ms[1:])
     return ms[0]
+
+def merge_msgs(
+    *ids, # Adjacent message ids to merge
+    dlg=None, # An ipynb path; the current dialog file if None
+):
+    "Merge messages in the dialog file (see `Dialog.merge_msgs`)"
+    d = _to_dlg(dlg)
+    res = d.merge_msgs(*ids)
+    _save(d)
+    return res
 
 # %% ../nbs/05_dlgskill.ipynb #928f2387
 _paste_buf = []
 
-def copy_msgs(
+@patch
+def copy_msgs(self:Dialog,
     *ids, # Messages or ids to copy
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
     "Copy messages into the paste buffer (replacing its contents), for later `paste_msgs`"
     global _paste_buf
-    d = _to_dlg(dlg)
-    _paste_buf = Msgs([d.msg(i) for i in ids])
+    _paste_buf = Msgs([self.msg(i) for i in ids])
     return _paste_buf
 
-def cut_msgs(
+@patch
+def cut_msgs(self:Dialog,
     *ids, # Messages or ids to cut
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
 ):
     "Copy messages into the paste buffer, then remove them from the dialog"
-    d, sv = _load_dlg(dlg)
-    res = copy_msgs(*ids, dlg=d)
-    d.remove_msgs(res)
-    _save(d, sv)
+    res = self.copy_msgs(*ids)
+    self.remove_msgs(res)
+    return res
+
+@patch
+def paste_msgs(self:Dialog,
+    before=None, # Insert before this message or id
+    after=None, # Insert after this message or id
+):
+    "Insert copies of the buffered messages (fresh ids) before/after a message or id; returns the new messages"
+    if before is not None: before = self.msg(before)
+    if after is not None: after = self.msg(after)
+    return Msgs(self.mk_messages(_paste_buf, before=before, after=after))
+
+def copy_msgs(
+    *ids, # Message ids to copy
+    dlg=None, # An ipynb path; the current dialog file if None
+):
+    "Copy messages into the paste buffer (replacing its contents), for later `paste_msgs`"
+    return _to_dlg(dlg).copy_msgs(*ids)
+
+def cut_msgs(
+    *ids, # Message ids to cut
+    dlg=None, # An ipynb path; the current dialog file if None
+):
+    "Copy messages into the paste buffer, then remove them from the dialog file"
+    d = _to_dlg(dlg)
+    res = d.cut_msgs(*ids)
+    _save(d)
     return res
 
 def paste_msgs(
     before=None, # Insert before this message or id
     after=None, # Insert after this message or id
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
+    dlg=None, # An ipynb path; the current dialog file if None
 ):
-    "Insert copies of the buffered messages (fresh ids) before/after a message or id; returns the new messages"
-    d, sv = _load_dlg(dlg)
-    if before is not None: before = d.msg(before)
-    if after is not None: after = d.msg(after)
-    res = Msgs(d.mk_messages(_paste_buf, before=before, after=after))
-    _save(d, sv)
+    "Insert copies of the buffered messages (fresh ids) before/after a message or id in the dialog file; returns the new messages"
+    d = _to_dlg(dlg)
+    res = d.paste_msgs(before=before, after=after)
+    _save(d)
     return res
 
 # %% ../nbs/05_dlgskill.ipynb #9ef4dc1f
@@ -336,7 +418,7 @@ Be sure you've viewed the message (e.g. `view_msg`) so you know the line nums.
 
 Message editing standard parameters:
 - `id`: message id (or list of ids, or 'all'), unique prefixes allowed
-- `dlg`: `Dialog` or ipynb path; the current dialog file if None
+- `dlg`: an ipynb path; the current dialog file if None
 - `out`: edit the output text (prompt reply, or code outputs literal) instead of the source
 
 returns: diff of changes, or "none: No changes.", or "error: ..."
@@ -371,32 +453,23 @@ msg_str_replace   = _msg_edit(str_replace,   'msg_str_replace')
 msg_strs_replace  = _msg_edit(strs_replace,  'msg_strs_replace')
 msg_replace_lines = _msg_edit(replace_lines, 'msg_replace_lines')
 msg_del_lines     = _msg_edit(del_lines,     'msg_del_lines')
+msg_ast_replace   = _msg_edit(ast_replace,   'msg_ast_replace')
 
-# %% ../nbs/05_dlgskill.ipynb #74cc7b84
-def python_msgs(
-    func, # `str -> str` applied to each message's content
-    *ids, # Messages or ids; all code messages if none given
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
-):
-    "Rewrite message sources with `func`, returning `(id, diff)` pairs for changed messages"
-    d, sv = _load_dlg(dlg)
-    ms = [d.msg(i) for i in ids] if ids else [m for m in d.messages if m.msg_type==scode]
-    res = []
-    for m in ms:
-        new = func(m.content)
-        if new != m.content:
-            res.append((m.id, str_diff(m.content, new)))
-            m.content = new
-    _save(d, sv)
+def _msg_method(f):
+    def method(self, *args, out:bool=False, **kw):
+        text = _out_text(self) if out else self.content
+        if not text: return PrettyString(f"error: Message has no {'output' if out else 'source'}")
+        try: new = f(text, *args, **kw)
+        except ValueError as e: return PrettyString(f'error: {e}')
+        if out: _set_out_text(self, new)
+        else: self.content = new
+        return PrettyString(str_diff(text, new) or 'none: No changes.')
+    res = splice_sig(method, f, 'text')
+    res.__name__ = res.__qualname__ = f.__name__
+    res.__doc__ = (f.__doc__ or '') + "\nIn-memory edit of this message (`out=True` edits a prompt's reply), returning a diff; nothing is saved."
     return res
 
-def ast_msgs(
-    repls:list, # (pattern, replacement) ast-grep rules
-    *ids, # Messages or ids; all code messages if none given
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
-):
-    "Apply ast-grep `repls` to message sources (requires the optional `remold` package)"
-    return python_msgs(lambda t: ast_replace(t, repls), *ids, dlg=dlg)
+for _f in (insert_line, str_replace, strs_replace, replace_lines, del_lines, ast_replace): setattr(Message, _f.__name__, _msg_method(_f))
 
 # %% ../nbs/05_dlgskill.ipynb #b3f84a46
 def symdef_finder(name):
@@ -415,27 +488,40 @@ def ast_finder(pattern):
     return lambda m: bool(astfind(m.content, pattern))
 
 # %% ../nbs/05_dlgskill.ipynb #b6f8b9b3
-def lnhashview_msg(
-    m, # A `Message`, or an id looked up in `dlg`
-    dlg=None, # `Dialog` or path when `m` is an id; the current dialog file if None
-):
-    "Hash-addressed view of `m.content`, for `exhash_msg`"
-    return view_msg(m, dlg, lnhashs=True)
+@patch
+def lnhashview(self:Message):
+    "Hash-addressed view of this message's content, for `Message.exhash`"
+    return self.view(lnhashs=True)
 
-def exhash_msg(
-    m, # A `Message`, or an id looked up in `dlg`
+@patch
+def exhash(self:Message,
+    *cmds:tuple, # exhash command tuples, addresses from `lnhashview`
+    sw:int=4, # Shift width for indent commands
+):
+    "Apply exhash commands to this message's content in memory, returning the diff"
+    from exhash import exhash as _exhash
+    res = _exhash(self.content, list(cmds), sw=sw)
+    self.content = '\n'.join(res.lines)
+    return PrettyString(res.format_diff(context=1))
+
+def lnhashview_msg(
+    id, # Message id, looked up in `dlg` (unique prefixes allowed)
+    dlg=None, # An ipynb path; the current dialog file if None
+):
+    "Hash-addressed view of a message's content, for `msg_exhash`"
+    return _to_dlg(dlg).msg(id).lnhashview()
+
+def msg_exhash(
+    id, # Message id, looked up in `dlg` (unique prefixes allowed)
     *cmds:tuple, # exhash command tuples, addresses from `lnhashview_msg`
     sw:int=4, # Shift width for indent commands
-    dlg=None, # `Dialog` or path when `m` is an id; the current dialog file if None
+    dlg=None, # An ipynb path; the current dialog file if None
 ):
-    "Apply exhash commands to `m.content`, returning the diff"
-    from exhash import exhash
-    d,sv = (None,False) if isinstance(m, Message) else _load_dlg(dlg)
-    if d is not None: m = d.msg(m)
-    res = exhash(m.content, list(cmds), sw=sw)
-    m.content = '\n'.join(res.lines)
-    _save(d, sv)
-    return PrettyString(res.format_diff(context=1))
+    "Apply exhash commands to a message in the dialog file, returning the diff"
+    d = _to_dlg(dlg)
+    res = d.msg(id).exhash(*cmds, sw=sw)
+    _save(d)
+    return res
 
 # %% ../nbs/05_dlgskill.ipynb #38af2f2e
 def add_msg(
@@ -443,7 +529,7 @@ def add_msg(
     msg_type:str='code', # 'code', 'note', 'prompt', or 'raw'
     before:str=None, # message or id to insert before
     after:str=None, # message or id to insert after
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
+    dlg=None, # An ipynb path; the current dialog file if None
 ):
     "Add a new message before/after an existing one (pass exactly one), returning it"
     d, sv = _load_dlg(dlg)
@@ -454,7 +540,7 @@ def add_msg(
 
 def del_msgs(
     *ids, # Messages or ids to delete
-    dlg=None, # A `Dialog`, or ipynb path; the current dialog file if None
+    dlg=None, # An ipynb path; the current dialog file if None
 ):
     "Delete messages by id, returning the removed messages"
     d, sv = _load_dlg(dlg)
@@ -470,7 +556,7 @@ def create_dlg(
     "Create a new dialog file containing one message, returning the `Dialog` (with `path_` stamped)"
     f = Path(fname)
     if f.exists(): raise FileExistsError(str(f))
-    d = Dialog(f.stem)
+    d = Dialog(name=f.stem)
     d.mk_message(source, msg_type=msg_type)
     write_ipynb(d, f)
     d.path_ = f

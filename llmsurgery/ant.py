@@ -473,7 +473,7 @@ def chat2dlg(
     mx=2000, # Maximum characters per rendered tool input/output string; None disables truncation (see `hist2fmt`)
 ):
     "A dialog for `msgs`: one prompt per user turn, replies rendered in the format `fmt2hist` parses"
-    dlg,turns = cls(name),[]
+    dlg,turns = cls(name=name),[]
     for m in msgs:
         if m.role=='user': turns.append((m,[]))
         elif turns: turns[-1][1].append(m)
