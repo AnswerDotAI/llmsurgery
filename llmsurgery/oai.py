@@ -122,6 +122,10 @@ def codex_output(call_id, output):
 # %% ../nbs/04_oai.ipynb #a2e139af
 _re_exec = re.compile(r'^\s*const\s+(\w+)\s*=\s*await\s+tools\.([A-Za-z_]\w*)\((\{.*\})\);\s*(.*?)\s*$', re.S)
 _re_code_template = re.compile(r'^\{\s*code\s*:\s*(String\.raw)?`(.*)`\s*\}$', re.S)
+_MCP_TAILS = {  # display-only result forwarding, per codex version, with `r` for the var and whitespace stripped
+    'for(constcof(r.content||[]))c.type==="image"?image(c):c.text&&text(c.text);',
+    'for(constcof(r.content||[]))c.type==="text"?text(c.text):c.type==="image"?image(c):null;',
+}
 
 def _exec_args(raw):
     "Arguments from the JSON or template-literal forms Codex currently emits"
@@ -140,10 +144,11 @@ def parse_exec(src):
     m = _re_exec.match(src)
     if not m: return None
     var,tool,raw,tail = m.groups()
-    if tool=='exec_command': expected = f'text({var}.output);'
-    elif tool.startswith('mcp__'): expected = f'for (const c of ({var}.content || [])) c.type === "image" ? image(c) : c.text && text(c.text);'
+    tail = re.sub(r'\s+', '', re.sub(rf'\b{re.escape(var)}\b', 'r', tail))
+    if tool=='exec_command': ok = tail=='text(r.output);'
+    elif tool.startswith('mcp__'): ok = tail in _MCP_TAILS
     else: return None
-    if tail != expected: return None
+    if not ok: return None
     if arguments:=_exec_args(raw): return AttrDict(name='tools.'+tool, arguments=arguments)
 
 def exec_input(name, arguments):
@@ -153,8 +158,8 @@ def exec_input(name, arguments):
     if tool=='exec_command': result = 'text(r.output);'
     else:
         assert tool.startswith('mcp__')
-        result = 'for (const c of (r.content || [])) c.type === "image" ? image(c) : c.text && text(c.text);'
-    return f"const r = await tools.{tool}({json.dumps(arguments, separators=(',',':'))});\n{result}\n"
+        result = 'for (const c of (r.content||[])) c.type==="text"?text(c.text):c.type==="image"?image(c):null;'
+    return f"const r=await tools.{tool}({json.dumps(arguments, separators=(',',':'))}); {result}\n"
 
 def codex_custom_call(name, arguments, call_id=None, item_id=None):
     "A Codex custom `exec` call wrapping one logical `tools.*` operation"

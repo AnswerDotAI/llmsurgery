@@ -18,7 +18,7 @@ The function/method two-shapes contract is `fastcore.editskill`'s, learned once:
 
 - `summary_dlg(dlg)` / `d.summary()`: one preview line per message, `id:t:content` (t: c=code n=note p=prompt r=raw).
 - `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, ids, or a `pred` (`symdef_finder`/`symref_finder`/`ast_finder` build structural ones); `context` defaults to 1 (the neighbouring message usually explains the match). Returns `MsgRow` snapshots (`id`, `msg_type`, `content`, `out`, `meta`), shown as preview lines. `d.find_msgs(...)` returns live `Message` objects in a `Msgs` list instead, edited directly rather than re-addressed. Every live message carries a `dlg` backref to its owning `Dialog`, so dialog-level operations are always in reach from a message in hand (e.g. `m.dlg.save()` after mutating `m.output` directly).
-- `view_dlg(dlg)` / `d.view()` / `view_msg(id)` / `m.view()` / `view_msgs(*ids)` / `msg2xml(m)` / `m.to_xml()`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section).
+- `view_dlg(dlg)` / `d.view()` / `view_msg(id)` / `m.view()` / `view_msgs(*ids)` / `msg2xml(m)` / `m.to_xml()`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section); `incl_out=True` on the line views appends the message's output the same way.
 - Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`, with session twins `d.move_msgs`, `m.split`, `d.merge_msgs`, `d.copy_msgs`/`d.cut_msgs`/`d.paste_msgs` (session adds go through `d.mk_message`, deletes through `d.remove_msgs`); the `%%add_msg` magic takes its body verbatim: its line is `%%add_msg [dlg] [msg_type] [before=|after=<id>]`, where a bare path token is the dlg and a bare type name the msg_type, and keyword spellings win over bare tokens.
 - Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines`, `msg_ast_replace` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal), with the same names as `Message` methods for in-memory editing; `lnhashview_msg`/`msg_exhash` (and `m.lnhashview()`/`m.exhash()`) for hash-verified line edits (`lnhashview_msg` is `view_msg(..., lnhashs=True)`; only the exhash pair needs the `exhash` package).
 - `reply2dlg(pmsg)`/`dlg2reply(sub)`: explode a reply into note/code messages and back; byte-exact for fmt2hist-clean replies.
@@ -160,11 +160,17 @@ def view(self:Message,
     start_line:int=1, # Starting line to view
     end_line:int=None, # End line (defaults to last line if None; -1 for EOF)
     lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
+    incl_out:bool=False, # Append the output (a prompt's reply, or code outputs) in an `<out>` block?
+    trunc_out:bool=True, # Truncate an included output to ~512 chars?
 ):
     "This message's content with optional line numbers or exhash addresses"
     lines = self.content.splitlines()
     lines = lines[start_line-1:len(lines) if end_line in (None,-1) else end_line]
-    return PrettyString('\n'.join((lnhash(i,l)+l if lnhashs else f'{i}: {l}' if nums else l) for i,l in enumerate(lines, start_line)))
+    res = '\n'.join((lnhash(i,l)+l if lnhashs else f'{i}: {l}' if nums else l) for i,l in enumerate(lines, start_line))
+    if incl_out:
+        o = self.ai_res if self.msg_type==sprompt else render_outputs_ai(self.output) if self.msg_type==scode and self.output else ''
+        if o: res += f"\n<out>\n{truncstr(o, 512) if trunc_out else o}\n</out>"
+    return PrettyString(res)
 
 def view_msg(
     id, # Message id, looked up in `dlg` (unique prefixes allowed)
@@ -173,19 +179,23 @@ def view_msg(
     start_line:int=1, # Starting line to view
     end_line:int=None, # End line (defaults to last line if None; -1 for EOF)
     lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
+    incl_out:bool=False, # Append the output (a prompt's reply, or code outputs) in an `<out>` block?
+    trunc_out:bool=True, # Truncate an included output to ~512 chars?
 ):
     "Show a message's content with optional line numbers or exhash addresses"
-    return _to_dlg(dlg).msg(id).view(nums, start_line, end_line, lnhashs)
+    return _to_dlg(dlg).msg(id).view(nums, start_line, end_line, lnhashs, incl_out, trunc_out)
 
 def view_msgs(
     *ids, # Message ids
     dlg=None, # An ipynb path; the current dialog file if None
     nums:bool=True, # Show line numbers?
     lnhashs:bool=False, # Show exhash `lineno|hash|` addresses instead of line numbers?
+    incl_out:bool=False, # Append each output (a prompt's reply, or code outputs) in an `<out>` block?
+    trunc_out:bool=True, # Truncate each included output to ~512 chars?
 ):
     "Show several messages, each preceded by a `# msg <id>` header"
     d = _to_dlg(dlg)
-    return PrettyString('\n'.join(f"# msg {(m := d.msg(i)).id}\n{m.view(nums, lnhashs=lnhashs)}" for i in ids))
+    return PrettyString('\n'.join(f"# msg {(m := d.msg(i)).id}\n{m.view(nums, lnhashs=lnhashs, incl_out=incl_out, trunc_out=trunc_out)}" for i in ids))
 
 # %% ../nbs/05_dlgskill.ipynb #4bf78327
 def _match_head(m, want):
