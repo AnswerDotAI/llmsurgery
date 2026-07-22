@@ -11,7 +11,6 @@ __all__ = ['compact_policy', 'tool_part', 'tool_result', 'compact_enc', 'enc_tok
 # %% ../nbs/05_compact.ipynb #de23b4fe
 from fastcore.utils import *
 from functools import cache
-from fastllm.chat import mk_msg, mk_msgs
 from fastllm.types import PartType,Part,Msg
 
 import re,tiktoken
@@ -42,7 +41,7 @@ def len_toks(s, enc=None):
 
 # %% ../nbs/05_compact.ipynb #396a6a3b
 def trunctoks_mid(s, max_toks, enc=None, mark=' … '):
-    """Truncate the middle of `s` to at most `max_toks` tokens."""
+    "Truncate the middle of `s` to at most `max_toks` tokens."
     if enc is None: enc = compact_enc()
     if max_toks <= 0: return ''
     toks = enc_toks(s, enc)
@@ -55,14 +54,20 @@ def trunctoks_mid(s, max_toks, enc=None, mark=' … '):
 
 # %% ../nbs/05_compact.ipynb #f55fe38a
 def compact_text(s, mark, max_toks, enc=None):
-    """Render delimited prose within `max_toks`."""
+    "Render delimited prose within `max_toks`."
     return trunctoks_mid(f'{mark} {s.strip()} {mark}', max_toks, enc)
 
 # %% ../nbs/05_compact.ipynb #e3f22ddb
+_re_warnnote = re.compile(r'<(warn|note)>.*?</\1>', re.DOTALL)
+
 def compact_result(s, max_toks, enc=None):
-    "Render a tool result within `max_toks`."
+    "Render a tool result within `max_toks`; `<warn>`/`<note>` doc-state blocks are dropped, and a `𝍁`-wrapped result is kept whole."
+    s = _re_warnnote.sub('', s).strip()
+    keep = len(s)>2 and s[0]=='𝍁' and s[-1]=='𝍁'
+    if keep: s = s[1:-1]
     text = ' ¶ '.join(line.strip() for line in s.splitlines() if line.strip())
-    return trunctoks_mid(f'> {text}' if text else '>', max_toks, enc)
+    res = f'> {text}' if text else '>'
+    return res if keep else trunctoks_mid(res, max_toks, enc)
 
 # %% ../nbs/05_compact.ipynb #783d1ab0
 def fenced_code(code, max_toks, enc=None):
@@ -73,8 +78,7 @@ def fenced_code(code, max_toks, enc=None):
     pre,suf = f'{fence}python\n',f'\n{fence}'
     full = pre + code + suf
     if len_toks(full, enc) <= max_toks: return full
-    if len_toks(pre + suf, enc) > max_toks:
-        raise ValueError('Token budget is too small for a fenced block')
+    if len_toks(pre + suf, enc) > max_toks: raise ValueError('Token budget is too small for a fenced block')
     body_toks = min(len_toks(code, enc), max_toks)
     while body_toks:
         body = trunctoks_mid(code, body_toks, enc)
@@ -99,20 +103,26 @@ def generic_call(name, args, max_toks, enc=None):
 def compact_call(p, max_toks, enc=None):
     "Render a tool-use part within `max_toks`."
     name, args = p.data['name'], p.data['arguments']
-    if name == 'mcp__clikernel__execute': return fenced_code(args['code'], max_toks, enc)
+    if name.removeprefix('tools.') == 'mcp__clikernel__execute': return fenced_code(args['code'], max_toks, enc)
     if name == 'Bash': return bash_call(args.get('command', ''), max_toks, enc)
     return generic_call(name, args, max_toks, enc)
 
 # %% ../nbs/05_compact.ipynb #d5c7af9a
+_re_plumbing = re.compile(r'\s*<(command-name|command-message|command-args|local-command-stdout|local-command-caveat|system-reminder)>')
+
+def _plumbing(text):
+    "Is this user text host plumbing (slash-command records, command stdout, hook output) rather than prose?"
+    return bool(_re_plumbing.match(text))
+
 def compact_user_part(p, max_toks, enc=None):
     "Render one user-text part, replacing injected skill contents."
     text = '…skill text compacted: re-invoke before relying on it…' if p.text.startswith('Base directory for this skill:') else p.text
     return compact_text(text, '§', max_toks, enc)
 
 def compact_user(m, max_toks, enc=None):
-    "Render the text parts of a user message."
+    "Render the text parts of a user message, dropping plumbing parts."
     return '\n'.join(compact_user_part(p, max_toks, enc)
-        for p in m.content if p.type == PartType.text)
+        for p in m.content if p.type == PartType.text and not _plumbing(p.text))
 
 # %% ../nbs/05_compact.ipynb #c43c4e7e
 def compact_asst_part(p, text_toks, call_toks, enc=None):
@@ -138,12 +148,18 @@ def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
     if m.role == 'tool': return compact_tool(m, result_toks, enc)
 
 # %% ../nbs/05_compact.ipynb #44c88dee
+def _substantive(m):
+    "Does the message render any content? Plumbing-only user messages do not, so they never spend `last_n` slots"
+    if m.role != 'user': return True
+    return any(p.type == PartType.text and not _plumbing(p.text) for p in m.content)
+
 def compact_chat(msgs, user_toks, asst_toks, call_toks, result_toks, enc=None, last_n=0):
     "Render canonical messages as compact user-led turns."
-    policy = dict(user_toks=user_toks, asst_toks=asst_toks,
-        call_toks=call_toks, result_toks=result_toks)
+    policy = dict(user_toks=user_toks, asst_toks=asst_toks, call_toks=call_toks, result_toks=result_toks)
     full_policy = {k:10**9 for k in policy}
-    turns,nfull = [],len(msgs)-last_n
+    subst = [i for i,m in enumerate(msgs) if _substantive(m)]
+    nfull = len(msgs) if not last_n else (subst[-last_n] if last_n <= len(subst) else 0)
+    turns = []
     for i,m in enumerate(msgs):
         if m.role == 'user' or not turns: turns.append([])
         p = full_policy if i >= nfull else policy
@@ -152,7 +168,7 @@ def compact_chat(msgs, user_toks, asst_toks, call_toks, result_toks, enc=None, l
     return '\n\n***\n\n'.join(filter(None, rendered))
 
 # %% ../nbs/05_compact.ipynb #42df86f5
-compact_policy = dict(user_toks=1000, asst_toks=100, call_toks=50, result_toks=25)
+compact_policy = dict(user_toks=2000, asst_toks=150, call_toks=60, result_toks=35)
 
 # %% ../nbs/05_compact.ipynb #5005ee37
 _re_skill = re.compile(r"▶ Skill\(skill='([^']+)'")

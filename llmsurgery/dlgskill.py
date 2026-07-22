@@ -14,12 +14,12 @@ Dropping a level is correct exactly when the question is about the representatio
 
 ## Core APIs
 
-Every operation has two shapes with one contract each. The *function* is a transaction: `dlg=` takes an ipynb path (or None, meaning the current dialog file: `set_dlg`), and the call reads the file, applies, writes, and returns its result - a diff for edits, `MsgRow` snapshots for searches. The *method* is a session: it lives on a held `Dialog` or `Message`, mutates in memory, and saves only on an explicit `dlg.save()`. The method is the function minus its address arguments (`msg_str_replace(id, ..., dlg=p)` ⟷ `m.str_replace(...)`; `find_msgs(pat, dlg=p)` ⟷ `d.find_msgs(pat)`), so each family is learned once. Wrapping any message list in an ephemeral `Dialog(msgs)` makes the whole session surface available on it; use one shape at a time per file, saving before switching to functions and reopening after.
+The function/method two-shapes contract is `fastcore.editskill`'s, learned once: the function is a transaction addressed by `dlg=` (an ipynb path, or None meaning the current dialog file: `set_dlg`); the method is a session on a held `Dialog` or `Message`, saved by an explicit `dlg.save()` (`msg_str_replace(id, ..., dlg=p)` ⟷ `m.str_replace(...)`). Wrapping any message list in an ephemeral `Dialog(msgs)` makes the whole session surface available on it.
 
 - `summary_dlg(dlg)` / `d.summary()`: one preview line per message, `id:t:content` (t: c=code n=note p=prompt r=raw).
 - `find_msgs(pattern, dlg, ...)`: search by regex, type, error state, heading, ids, or a `pred` (`symdef_finder`/`symref_finder`/`ast_finder` build structural ones); `context` defaults to 1 (the neighbouring message usually explains the match). Returns `MsgRow` snapshots (`id`, `msg_type`, `content`, `out`, `meta`), shown as preview lines. `d.find_msgs(...)` returns live `Message` objects in a `Msgs` list instead, edited directly rather than re-addressed. Every live message carries a `dlg` backref to its owning `Dialog`, so dialog-level operations are always in reach from a message in hand (e.g. `m.dlg.save()` after mutating `m.output` directly).
 - `view_dlg(dlg)` / `d.view()` / `view_msg(id)` / `m.view()` / `view_msgs(*ids)` / `msg2xml(m)` / `m.to_xml()`: full views in the shared `item2xml` grammar (a prompt's reply is its `<out>` section).
-- Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`, with session twins `d.move_msgs`, `m.split`, `d.merge_msgs`, `d.copy_msgs`/`d.cut_msgs`/`d.paste_msgs` (session adds go through `d.mk_message`, deletes through `d.remove_msgs`); the `%%add_msg` magic takes verbatim bodies.
+- Structure: `add_msg`, `del_msgs`, `move_msgs`, `split_msg`, `merge_msgs`, `copy_msgs`/`cut_msgs`/`paste_msgs`, `create_dlg`, with session twins `d.move_msgs`, `m.split`, `d.merge_msgs`, `d.copy_msgs`/`d.cut_msgs`/`d.paste_msgs` (session adds go through `d.mk_message`, deletes through `d.remove_msgs`); the `%%add_msg` magic takes its body verbatim: its line is `%%add_msg [dlg] [msg_type] [before=|after=<id>]`, where a bare path token is the dlg and a bare type name the msg_type, and keyword spellings win over bare tokens.
 - Text edits: `msg_str_replace`, `msg_strs_replace`, `msg_insert_line`, `msg_replace_lines`, `msg_del_lines`, `msg_ast_replace` (all with `re_filter`/line-range powers; `out=True` edits a prompt's reply or a code message's outputs literal), with the same names as `Message` methods for in-memory editing; `lnhashview_msg`/`msg_exhash` (and `m.lnhashview()`/`m.exhash()`) for hash-verified line edits (`lnhashview_msg` is `view_msg(..., lnhashs=True)`; only the exhash pair needs the `exhash` package).
 - `reply2dlg(pmsg)`/`dlg2reply(sub)`: explode a reply into note/code messages and back; byte-exact for fmt2hist-clean replies.
 
@@ -31,8 +31,7 @@ Start by registering the notebook: `set_dlg(path)` makes every function here def
 - Read before probing: an ad-hoc "what happens if..." experiment usually re-derives, more slowly and less reliably, what an existing example cell already shows. If after reading you still need an experiment, that's a gap in the notebook - add it as a proper example cell so the next reader doesn't repeat it.
 - `find_msgs` is the targeted view: keep the default `context=1` (the neighbouring markdown usually explains the match), and `ids=` with context is the positional query ("does A precede B?", "what's the idiom around here?"). Name questions are structural, not textual: `symdef_finder`/`symref_finder`/`ast_finder` beat regexes over binding syntax. Where available, rgapi's `nbrg` searches cell sources across files and returns the cell ids these functions take.
 - Edit at the right level: `add_msg`/`%%add_msg` for new messages; within a message, prefer hash-verified addressing (`lnhashview_msg`/`msg_exhash`, or exhash's `lnhashview_cell`/`cell_exhash` by path and cell id) - view with the lnhash variant the moment an edit is plausible, so the view doubles as the edit's address book. The plain `msg_*` editors fit where exhash can't express the edit, e.g. one `msg_str_replace` across an id list. Never splice via `read_nb`/`write_nb` internals: if a primitive is missing here, stop and propose adding it.
-- Every editing operation returns a diff: read it - that's the immediate verification. `dlg.validate()` catches model-level damage early; `dlg.save()` writes back.
-- Don't hand-roll `json`/`grep`/`bash` over ipynb files for anything these functions cover, and don't wrap calls in defensive scaffolding (`hasattr`, `try/except`) - call directly and read the bare result.
+- `dlg.validate()` catches model-level damage early; `dlg.save()` writes back. Don't wrap calls in defensive scaffolding (`hasattr`, `try/except`) - call directly and read the bare result.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/dlgskill.html.md"""
 
@@ -471,6 +470,9 @@ def _msg_method(f):
 
 for _f in (insert_line, str_replace, strs_replace, replace_lines, del_lines, ast_replace): setattr(Message, _f.__name__, _msg_method(_f))
 
+# %% ../nbs/05_dlgskill.ipynb #6f441ba4
+__pyskill_params__ = {'replace_params': ('start_line', 'end_line', 'n_matches', 're_filter', 'invert_filter', 'use_regex')}
+
 # %% ../nbs/05_dlgskill.ipynb #b3f84a46
 def symdef_finder(name):
     "`find_msgs` predicate: does the message bind `name` at cell top level? (requires `remold`)"
@@ -565,12 +567,12 @@ def create_dlg(
 # %% ../nbs/05_dlgskill.ipynb #fb670f10
 def add_msg_magic(line, cell):
     "Add a new message with the magic body as its source, taken verbatim."
-    mt, dlg, kw = 'code', None, {}
+    kw = {}
     for t in shlex.split(line):
         if '=' in t: kw.update([t.split('=', 1)])
-        elif t in smsg_types: mt = t
-        else: dlg = t
-    return add_msg(cell.rstrip('\n'), msg_type=mt, dlg=dlg, **kw)
+        elif t in smsg_types: kw.setdefault('msg_type', t)
+        else: kw.setdefault('dlg', t)
+    return add_msg(cell.rstrip('\n'), **kw)
 
 def load_ipython_extension(ipython): ipython.register_magic_function(add_msg_magic, 'cell', 'add_msg')
 

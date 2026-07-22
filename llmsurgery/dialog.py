@@ -60,6 +60,11 @@ class Dialog(BasicRepr):
         for m in self.messages:  # claim only orphans: wrapping live messages must not steal them from their real dialog
             if m.dlg is None: m.dlg = self
 
+    def __len__(self): return len(self.messages)
+    def __bool__(self): return True
+    def __iter__(self): return iter(self.messages)
+    def __getitem__(self, idx): return self.messages[idx]
+
     def _repr_markdown_(self):
         msgs = ''
         if self.messages:

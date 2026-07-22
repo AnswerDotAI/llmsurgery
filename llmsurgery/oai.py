@@ -7,19 +7,25 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/oai.html.md"""
 # %% auto #0
 __all__ = ['CODEX_HOME', 'cur_thread', 'rollout_file', 'load_recs', 'load_rollout', 'project_thread', 'thread_id',
            'response_items', 'split_compaction', 'active_items', 'codex_msg', 'codex_call', 'codex_output',
-           'parse_exec', 'exec_input', 'codex_custom_call', 'codex_custom_output', 'reid_items', 'CodexAppServer',
+           'parse_exec', 'exec_input', 'codex_custom_call', 'codex_custom_output', 'reid_items', 'codex_client',
            'tool_turn', 'custom_turn', 'item_txt', 'item_role', 'conv_items', 'ItemHits', 'item_search', 'show_items',
            'PromptHist', 'prompt_hist', 'strip_reasoning', 'trunc_tools', 'curate_items', 'dlg2items', 'dlg2thread',
-           'items2chat', 'chat2dlg', 'items2dlg', 'thread2dlg', 'resolve_thread']
+           'items2chat', 'chat2dlg', 'items2dlg', 'thread2dlg', 'resolve_thread', 'prepare_compaction',
+           'append_compaction', 'compact_session']
 
 # %% ../nbs/04_oai.ipynb #d29693fa
-import asyncio, base64, json, os, re, uuid
+import base64, json, os, re, shutil, uuid
 from pathlib import Path
+from datetime import datetime, timezone
+from openai_codex import AsyncCodex, CodexConfig
+from openai_codex.api import AsyncThread
+from openai_codex.generated.v2_all import ThreadInjectItemsResponse
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
 from fastllm.chat import Msg, Part, PartType, hist2fmt, data_url
 from .hist import dlg2chat
 from .dialog import *
+from .compact import *
 import json5
 
 # %% ../nbs/04_oai.ipynb #fd091c3b
@@ -63,7 +69,8 @@ def project_thread(
     paths = sorted((Path(codex_home)/'sessions').rglob('*.jsonl'),key=lambda p:p.stat().st_mtime,reverse=True)
     for path in paths:
         meta = json.loads(path.open().readline())
-        if meta['type']=='session_meta' and Path(meta['payload']['cwd']).resolve()==cwd: return meta['payload']['id'],path
+        if meta.get('type')!='session_meta': continue
+        if Path(meta['payload']['cwd']).resolve()==cwd: return meta['payload']['id'],path
     raise FileNotFoundError(f'No Codex thread for {cwd}')
 
 # %% ../nbs/04_oai.ipynb #b03dc5aa
@@ -113,22 +120,41 @@ def codex_output(call_id, output):
     return dict(type='function_call_output', call_id=call_id, output=output)
 
 # %% ../nbs/04_oai.ipynb #a2e139af
-_re_exec = re.compile(r'^\s*const\s+(\w+)\s*=\s*await\s+tools\.([A-Za-z_]\w*)\((\{.*\})\);\s*text\((?:\1\.output|JSON\.stringify\(\1\))\);?\s*$', re.S)
+_re_exec = re.compile(r'^\s*const\s+(\w+)\s*=\s*await\s+tools\.([A-Za-z_]\w*)\((\{.*\})\);\s*(.*?)\s*$', re.S)
+_re_code_template = re.compile(r'^\{\s*code\s*:\s*(String\.raw)?`(.*)`\s*\}$', re.S)
+
+def _exec_args(raw):
+    "Arguments from the JSON or template-literal forms Codex currently emits"
+    try: return json5.loads(raw)
+    except ValueError: pass
+    m = _re_code_template.match(raw)
+    if not m: return None
+    raw_tag,code = m.groups()
+    if '${' in code: return None
+    if raw_tag: return {'code':code}
+    if '\\' in code.replace(r'\\','').replace(r'\`',''): return None
+    return {'code':code.replace(r'\\','\\').replace(r'\`','`')}
 
 def parse_exec(src):
     "The logical nested tool call in a simple Codex `exec` input, or None"
     m = _re_exec.match(src)
     if not m: return None
-    try: arguments = json5.loads(m.group(3))
-    except ValueError: return None
-    return AttrDict(name='tools.'+m.group(2), arguments=arguments)
+    var,tool,raw,tail = m.groups()
+    if tool=='exec_command': expected = f'text({var}.output);'
+    elif tool.startswith('mcp__'): expected = f'for (const c of ({var}.content || [])) c.type === "image" ? image(c) : c.text && text(c.text);'
+    else: return None
+    if tail != expected: return None
+    if arguments:=_exec_args(raw): return AttrDict(name='tools.'+tool, arguments=arguments)
 
 def exec_input(name, arguments):
     "Stable `exec` JavaScript for one logical `tools.*` call"
     assert name.startswith('tools.')
     tool = name.removeprefix('tools.')
-    result = 'JSON.stringify(r)' if tool=='exec_command' else 'r.output'
-    return f"const r = await tools.{tool}({json.dumps(arguments, separators=(',',':'))});\ntext({result});\n"
+    if tool=='exec_command': result = 'text(r.output);'
+    else:
+        assert tool.startswith('mcp__')
+        result = 'for (const c of (r.content || [])) c.type === "image" ? image(c) : c.text && text(c.text);'
+    return f"const r = await tools.{tool}({json.dumps(arguments, separators=(',',':'))});\n{result}\n"
 
 def codex_custom_call(name, arguments, call_id=None, item_id=None):
     "A Codex custom `exec` call wrapping one logical `tools.*` operation"
@@ -162,90 +188,31 @@ def reid_items(
     return L(_remap(o) for o in items)
 
 # %% ../nbs/04_oai.ipynb #f4fffe3a
-class CodexAppServer:
-    "Small async client for `codex app-server`"
-    def __init__(self, cmd='codex', codex_home=None):
-        self.cmd,self.codex_home = cmd,codex_home
-        self.proc,self._id,self.events = None,0,[]
+def codex_client(codex_home=None):
+    "An `AsyncCodex` on the PATH `codex` binary, optionally with a redirected `CODEX_HOME`"
+    return AsyncCodex(CodexConfig(codex_bin=shutil.which('codex'),
+        env=dict(CODEX_HOME=str(codex_home)) if codex_home else None))
 
-    async def start(self):
-        env = os.environ.copy()
-        if self.codex_home is not None: env['CODEX_HOME'] = str(self.codex_home)
-        self.proc = await asyncio.create_subprocess_exec(self.cmd, 'app-server', stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, env=env)
-        await self.request('initialize', dict(clientInfo=dict(name='llmsurgery', title='llmsurgery', version='0.1')))
-        await self.notify('initialized')
-        return self
+@patch
+async def inject_items(self:AsyncThread, items):
+    "Append raw Responses API `items` to this thread's model history"
+    await self._codex._ensure_initialized()
+    return await self._codex._client.request('thread/inject_items',
+        dict(threadId=self.id, items=[obj2dict(o) for o in items]), response_model=ThreadInjectItemsResponse)
 
-    async def _send(self, message):
-        self.proc.stdin.write((json.dumps(message)+'\n').encode())
-        await self.proc.stdin.drain()
+@patch
+async def create_thread(self:AsyncCodex, items, cwd=None, **kwargs):
+    "Start a persisted thread whose history is pre-filled with `items`"
+    thread = await self.thread_start(cwd=str(Path(cwd).resolve()) if cwd else None, **kwargs)
+    await thread.inject_items(items)
+    return thread
 
-    async def notify(self, method, params=None): await self._send(dict(method=method, params=params or {}))
-
-    async def request(self, method, params=None):
-        self._id += 1
-        await self._send(dict(method=method, id=self._id, params=params or {}))
-        while line := await self.proc.stdout.readline():
-            message = json.loads(line)
-            if message.get('id') != self._id:
-                self.events.append(message)
-                continue
-            if 'error' in message: raise RuntimeError(message['error']['message'])
-            return dict2obj(message['result'])
-        raise RuntimeError('codex app-server exited before replying')
-
-    async def start_thread(self, cwd=None, **kwargs):
-        "Start a persisted thread"
-        if cwd is not None: kwargs['cwd'] = str(Path(cwd).resolve())
-        return (await self.request('thread/start', kwargs)).thread
-
-    async def resume_thread(self, thread_id, **kwargs):
-        "Load a persisted thread into this app-server"
-        return (await self.request('thread/resume', dict(threadId=thread_id, **kwargs))).thread
-
-    async def read_thread(self, thread_id, include_turns=True):
-        "Read persisted thread metadata and optional model turns"
-        return (await self.request('thread/read', dict(threadId=thread_id, includeTurns=include_turns))).thread
-
-    async def inject_items(self, thread_id, items):
-        "Append raw Responses API `items` to a loaded thread's model history"
-        return await self.request('thread/inject_items', dict(threadId=thread_id, items=list(items)))
-
-    async def create_thread(self, items, cwd=None, **kwargs):
-        "Start a thread whose history is pre-filled with `items`"
-        thread = await self.start_thread(cwd=cwd, **kwargs)
-        await self.inject_items(thread.id, items)
-        return thread
-
-    async def append_thread(self, thread_id, items, **kwargs):
-        "Resume `thread_id` and append raw Responses items"
-        thread = await self.resume_thread(thread_id, **kwargs)
-        await self.inject_items(thread.id, items)
-        return thread
-
-    async def fork_thread(self, thread_id, last_turn_id=None, **kwargs):
-        "Fork a thread, optionally only through `last_turn_id`"
-        params = dict(threadId=thread_id, **kwargs)
-        if last_turn_id is not None: params['lastTurnId'] = last_turn_id
-        return (await self.request('thread/fork', params)).thread
-
-    async def name_thread(self, thread_id, name):
-        "Set a thread's display name"
-        await self.request('thread/name/set', dict(threadId=thread_id, name=name))
-        return thread_id
-
-    async def compact_thread(self, thread_id):
-        "Start native Codex compaction for a loaded thread"
-        return await self.request('thread/compact/start', dict(threadId=thread_id))
-
-    async def close(self):
-        if self.proc is not None and self.proc.returncode is None:
-            self.proc.terminate()
-            await self.proc.wait()
-
-    async def __aenter__(self): return await self.start()
-    async def __aexit__(self, *args): await self.close()
+@patch
+async def append_thread(self:AsyncCodex, thread_id, items, **kwargs):
+    "Resume `thread_id` and append raw Responses `items`"
+    thread = await self.thread_resume(thread_id, **kwargs)
+    await thread.inject_items(items)
+    return thread
 
 # %% ../nbs/04_oai.ipynb #5487a9f1
 def tool_turn(prompt, name, arguments, output, answer):
@@ -466,7 +433,7 @@ def chat2dlg(
     mx=2000, # Maximum rendered tool string length; None disables truncation
 ):
     "A dialog for canonical messages, one prompt per user turn"
-    dlg,turns = cls(name),[]
+    dlg,turns = cls(name=name),[]
     for m in msgs:
         if m.role=='user': turns.append((m,[]))
         elif turns: turns[-1][1].append(m)
@@ -526,3 +493,51 @@ def resolve_thread(
     path = rollout_file(ref,codex_home)
     if not path: raise FileNotFoundError(f'No Codex thread {ref!r}')
     return ref,path
+
+# %% ../nbs/04_oai.ipynb #68b28ed9
+def _ts(): return datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00','Z')
+
+def _ctx_item(o):
+    "Is `o` context the compact DSL can't express: a non-conversation message, or a compaction item?"
+    return o.get('type')=='compaction' or (o.get('type')=='message' and o.get('role') not in ('user','assistant'))
+
+def _split_synthetic(items):
+    "Items to carry forward, and the DSL body of a trailing synthetic summary"
+    o = items[-1] if items else {}
+    if o.get('type')=='message' and '\n\n## Conversation\n\n' in (t := _output_text(o.get('content',''))):
+        return L(items[:-1]),compact_body(t)
+    return L(items),''
+
+# %% ../nbs/04_oai.ipynb #27e47c0d
+def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
+    "Prepare an incremental synthetic compaction without writing it"
+    tid,path = resolve_thread(ref, codex_home)
+    recs = load_recs(path)
+    prior,new = split_compaction(recs)
+    keep,prior_body = _split_synthetic(prior)
+    msgs = items2chat(new)
+    if not msgs: raise ValueError(f'No new items to compact in {tid}')
+    new_chat = compact_chat(msgs, enc=enc, last_n=5, **policy)
+    new_full = compact_chat(msgs, enc=enc, **{k:10**9 for k in policy})
+    chat,full = join_compacts(prior_body,new_chat),join_compacts(prior_body,new_full)
+    content = compact_content(chat, path)
+    comps = [r.payload for r in recs if r.get('type')=='compacted']
+    prev = comps[-1].get('window_id') if comps else nested_idx(recs[0], 'payload', 'context_window', 'window_id')
+    first = comps[0].get('first_window_id') if comps else prev
+    payload = dict(message='', replacement_history=list(keep + L(new).filter(_ctx_item) + [codex_msg('user', content)]),
+        window_number=len(comps)+1, first_window_id=first, previous_window_id=prev, window_id=str(uuid.uuid4()))
+    rec = dict(timestamp=_ts(), type='compacted', payload=payload)
+    return AttrDict(tid=tid,path=path,rec=rec,prior=prior_body,new_chat=new_chat,chat=chat,full=full,content=content,
+        pre_toks=len_toks(full,enc),post_toks=len_toks(content,enc))
+
+# %% ../nbs/04_oai.ipynb #9bbb52a6
+def append_compaction(compaction):
+    "Append a prepared compaction record to its thread's rollout"
+    with Path(compaction.path).open('a') as f: f.write(json.dumps(obj2dict(compaction.rec))+'\n')
+    return compaction.path
+
+def compact_session(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
+    "Generate and append a synthetic thread compaction"
+    compaction = prepare_compaction(ref, codex_home, policy, enc)
+    append_compaction(compaction)
+    return compaction

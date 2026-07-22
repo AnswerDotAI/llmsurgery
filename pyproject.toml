@@ -15,10 +15,10 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = ['nbformat', 'fastcore>=2.1.4', 'python-fastllm>=0.0.28', 'json5', 'claude-agent-sdk']
+dependencies = ['nbformat', 'fastcore>=2.1.4', 'python-fastllm>=0.0.28']
 
 [project.optional-dependencies]
-dev = ['exhash']
+dev = ['exhash', 'openai-codex', 'claude-agent-sdk', 'json5']
 
 [project.urls]
 Repository = "https://github.com/AnswerDotAI/llmsurgery"
