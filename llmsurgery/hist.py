@@ -129,7 +129,9 @@ def local_time(self:Message):
 # %% ../nbs/02_hist.ipynb #9fe92c08
 @patch
 def todict(self:Message):
+    "Public stored fields plus the derived `exported` flag, with `output` as the AI-facing form"
     res = AttrDict({k:v for k,v in asdict(self).items() if k[0]!='_' and k!='attachments'})
+    res['exported'] = self.exported
     res['output'] = self.ai_output
     return res
 
