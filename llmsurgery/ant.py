@@ -6,18 +6,21 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 
 # %% auto #0
 __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'load_recs', 'sess_thread', 'rec_txt', 'sess_id',
-           'canon', 'stable_uuid', 'mk_rec', 'save_sess', 'append_sess', 'msgs2recs', 'mk_tu', 'mk_tr', 'tool_turn',
-           'load_sess', 'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist', 'prompt_hist',
-           'is_think_rec', 'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name', 'fork_sess',
-           'dlg2msgs', 'dlg2sess', 'recs2chat', 'chat2dlg', 'sess2dlg', 'resolve_session', 'split_compaction',
-           'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session',
-           'run_locked_agent']
+           'canon', 'stable_uuid', 'mk_rec', 'save_sess', 'append_sess', 'msgs2recs', 'msgs2sess', 'mk_tu', 'mk_tr',
+           'tool_turn', 'load_sess', 'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist',
+           'prompt_hist', 'is_think_rec', 'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name',
+           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2chat', 'chat2dlg', 'sess2dlg', 'resolve_session',
+           'split_compaction', 'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction',
+           'compact_session', 'run_locked_agent', 'tool_reply', 'hold_result', 'defer_tools', 'prefix_tools',
+           'mk_deferred', 'no_prompt', 'QueryError', 'aquery_events']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import asyncio, base64, json, os, re, uuid
-from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
+from claude_agent_sdk import (query, tool, create_sdk_mcp_server, ClaudeAgentOptions,
+    HookMatcher, AssistantMessage, TextBlock, StreamEvent, ResultMessage)
 from datetime import datetime, timezone
 from fastcore.utils import *
+from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs
 from fastllm.chat import Msg, Part, PartType, mk_msg, hist2fmt, data_url
 from .hist import dlg2chat
@@ -119,7 +122,9 @@ def mk_rec(
 ):
     "A transcript record for one conversation message, ready for `save_sess`"
     uid = uid or str(uuid.uuid4())
-    if role=='user' and isinstance(content, list) and len(content)==1 and content[0].get('type')=='text': content = content[0]['text']
+    if isinstance(content, list):
+        content = [{k:v for k,v in b.items() if k!='cache_control'} if isinstance(b, dict) else b for b in content]
+        if role=='user' and content and all(isinstance(b, dict) and b.get('type')=='text' for b in content): content = ''.join(b['text'] for b in content)
     msg = dict(type='message', role=role, content=content)
     r = dict(type=role, uuid=uid, parentUuid=None, sessionId=None, timestamp=ts or _now(), cwd=str(Path(cwd).expanduser().resolve()),
         version=CC_VERSION, gitBranch='HEAD', isSidechain=False, userType='external', permissionMode='default', message=msg)
@@ -182,6 +187,19 @@ def msgs2recs(
         out.append(mk_rec(m['role'], m['content'], cwd=cwd, uid=stable_uuid(f'{key}:{i}:{canon(m)}'), ts=ts, model=model, input_toks=tot, **kwargs))
         tot += _est_toks(m['content'])
     return out
+
+# %% ../nbs/03_ant.ipynb #12bd859f
+@delegates(msgs2recs)
+def msgs2sess(
+    msgs, # Anthropic-style messages: dicts with `role` and `content`
+    key='', # Salt: the same messages and key give the same session id
+    cwd='.', # Project directory the session is filed under
+    extra=None, # Records appended after the messages, e.g. from `mk_deferred`
+    **kwargs
+):
+    "Write `msgs` as a resumable session with a content-stable id, returning the sid"
+    sid = stable_uuid(f'{key}:{canon(msgs)}:{canon(extra or [])}')
+    return save_sess(msgs2recs(msgs, key=sid, cwd=cwd, **kwargs)+list(extra or []), sid, cwd)
 
 # %% ../nbs/03_ant.ipynb #fb2e37dc
 def mk_tu(
@@ -629,3 +647,115 @@ async def run_locked_agent(
     await asyncio.wait_for(_go(), timeout)
     txts = [b.text for m in msgs if isinstance(m, AssistantMessage) for b in m.content if isinstance(b, TextBlock)]
     return (txts[-1] if txts else None), msgs
+
+# %% ../nbs/03_ant.ipynb #f78e2891
+def tool_reply(content, is_error=False):
+    "An MCP tool return value carrying an Anthropic `tool_result`'s `content`"
+    if isinstance(content, str): content = [dict(type='text', text=content)]
+    def _cvt(b):
+        if b.get('type')!='image': return b
+        s = b['source']
+        return dict(type='image', data=s['data'], mimeType=s['media_type'])
+    return dict(content=[_cvt(b) for b in content], isError=is_error)
+
+def _res_key(name, input): return canon([name, canon(dict(input))])
+
+def hold_result(held, name, input, content, is_error=False):
+    "Queue a result for `defer_tools` to return when Claude re-invokes `name` with `input`; returns `held`"
+    held.setdefault(_res_key(name, input), []).append(tool_reply(content, is_error))
+    return held
+
+def defer_tools(
+    name, # MCP server name to register the tools under
+    tools, # The caller's tools, as `(name, description, schema)` triples
+    held=None, # Results queued by `hold_result`; calls without one defer
+):
+    "`mcp_servers`, `allowed_tools`, and `hooks` options deferring `tools` to the caller"
+    if not tools: return {},[],{}
+    if held is None: held = {}
+    def _mk(nm, desc, schema):
+        @tool(nm, desc or '', schema)
+        async def _t(args): return held[_res_key(f'mcp__{name}__{nm}', args)].pop(0)
+        return _t
+    async def _route(inp, tool_use_id, ctx):
+        dec = 'allow' if held.get(_res_key(inp['tool_name'], inp['tool_input'])) else 'defer'
+        return dict(hookSpecificOutput=dict(hookEventName='PreToolUse', permissionDecision=dec))
+    srv = create_sdk_mcp_server(name, tools=[_mk(*t) for t in tools])
+    allowed = [f'mcp__{name}__{nm}' for nm,_,_ in tools]
+    return {name: srv}, allowed, {'PreToolUse': [HookMatcher(matcher='|'.join(allowed), hooks=[_route])]}
+
+# %% ../nbs/03_ant.ipynb #94f0ce09
+def prefix_tools(
+    msgs, # Anthropic-style messages
+    prefix, # Stub name prefix, e.g. 'mcp__probe__'
+    skip=(), # Native tool names to leave unqualified, e.g. 'WebSearch'
+):
+    "Copy of `msgs` with client `tool_use` names qualified by `prefix`"
+    def _fix(b):
+        if not (isinstance(b, dict) and b.get('type')=='tool_use'): return b
+        nm = b.get('name','')
+        if not nm or nm.startswith('mcp__') or nm in skip: return b
+        return dict(b, name=prefix+nm)
+    return [dict(m, content=[_fix(b) for b in m['content']]) if isinstance(m.get('content'), list) else m for m in msgs]
+
+# %% ../nbs/03_ant.ipynb #c2845e0c
+def mk_deferred(
+    tu, # The pending `tool_use` block dict
+    cwd='.', # Project directory recorded in the envelope
+    uid=None, # Record uuid; random if None
+    ts='2026-01-01T00:00:00.000Z', # Timestamp recorded in the envelope
+):
+    "A `hook_deferred_tool` attachment record marking `tu` as deferred, ready for `save_sess`"
+    return dict(type='attachment', uuid=uid or str(uuid.uuid4()), parentUuid=None, sessionId=None, isSidechain=False,
+        timestamp=ts, userType='external', cwd=str(Path(cwd).expanduser().resolve()), version=CC_VERSION, gitBranch='HEAD',
+        attachment=dict(type='hook_deferred_tool', toolUseID=tu['id'], toolName=tu['name'], toolInput=tu.get('input', {}),
+            hookName='settings', hookEvent='PreToolUse', permissionMode='default'))
+
+async def no_prompt():
+    "An empty streaming-input prompt: resume a session without adding a user turn"
+    return
+    yield
+
+# %% ../nbs/03_ant.ipynb #64ebc6b6
+class QueryError(Exception):
+    "An error `ResultMessage` from a `query` stream"
+    def __init__(self, result):
+        txt = result.result or '; '.join(result.errors or []) or result.subtype
+        m = re.search(r'\b(\d{3})\b', txt or '')
+        self.result,self.status = result,result.api_error_status or (int(m.group(1)) if m else None)
+        super().__init__(txt)
+
+# %% ../nbs/03_ant.ipynb #f82d252e
+def _reidx():
+    "Stateful rebase of per-message block indices onto one global sequence"
+    base,mx = 0,-1
+    def f(ev):
+        nonlocal base,mx
+        t = ev.get('type')
+        if t=='message_start': base,mx = base+mx+1,-1
+        elif t in ('content_block_start','content_block_delta','content_block_stop') and 'index' in ev:
+            mx = max(mx, ev['index'])
+            ev = {**ev, 'index': ev['index']+base}
+        return ev
+    return f
+
+# %% ../nbs/03_ant.ipynb #2d2d2d8a
+async def aquery_events(
+    prompt, # The new user turn: a string, or a streaming-input iterable, e.g. `no_prompt()`
+    opts, # `ClaudeAgentOptions`, with `include_partial_messages=True`
+    prefix=None, # MCP name prefix to strip from `tool_use` events, matching `defer_tools` naming
+):
+    "Anthropic stream events from a `query`, re-indexed as one global sequence; raises `QueryError` on an error result"
+    gen,f = query(prompt=prompt, options=opts),_reidx()
+    try:
+        async for msg in gen:
+            if isinstance(msg, ResultMessage) and msg.is_error: raise QueryError(msg)
+            elif isinstance(msg, StreamEvent):
+                ev = f(msg.event)
+                cb = ev.get('content_block', {})
+                if prefix and cb.get('type')=='tool_use' and cb.get('name','').startswith(prefix):
+                    ev = {**ev, 'content_block': {**cb, 'name': cb['name'][len(prefix):]}}
+                yield ev
+    finally:
+        try: await gen.aclose()
+        except Exception: pass
