@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = ['nbformat', 'fastcore>=2.1.4', 'python-fastllm>=0.0.28']
+dependencies = ['nbformat', 'fastcore>=2.1.4', 'python-fastllm>=0.0.28', 'tiktoken']
 
 [project.optional-dependencies]
 dev = ['exhash', 'openai-codex', 'claude-agent-sdk', 'json5']
