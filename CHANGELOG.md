@@ -2,6 +2,16 @@
 
 <!-- do not remove -->
 
+## 0.0.6
+
+### New Features
+
+- Migrate to aidialog ([#16](https://github.com/AnswerDotAI/llmsurgery/issues/16))
+- Add tool deferral, deferred-session resume, and stream-event query support to ant module ([#13](https://github.com/AnswerDotAI/llmsurgery/issues/13))
+- Add `incl_out`/`trunc_out` to message views and normalize `parse_exec` MCP tail matching across Codex versions ([#12](https://github.com/AnswerDotAI/llmsurgery/issues/12))
+- Replace hand-rolled Codex app-server client with `openai_codex` SDK, add synthetic thread compaction, normalize LaTeX in AI rendering, and make Dialog iterable ([#10](https://github.com/AnswerDotAI/llmsurgery/issues/10))
+
+
 ## 0.0.5
 
 ### New Features
