@@ -65,7 +65,7 @@ def set_dlg(
 ):
     "Set the current dialog file, used by these functions when `dlg` is None"
     global _cur_dlg
-    _cur_dlg = Path(fname)
+    _cur_dlg = Path(fname).resolve()
     return _cur_dlg
 
 def cur_dlg():
