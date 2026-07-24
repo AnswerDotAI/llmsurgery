@@ -10,8 +10,8 @@ __all__ = ['CODEX_HOME', 'cur_thread', 'rollout_file', 'load_recs', 'load_rollou
            'parse_exec', 'exec_input', 'codex_custom_call', 'codex_custom_output', 'reid_items', 'codex_client',
            'tool_turn', 'custom_turn', 'item_txt', 'item_role', 'conv_items', 'ItemHits', 'item_search', 'show_items',
            'PromptHist', 'prompt_hist', 'strip_reasoning', 'trunc_tools', 'curate_items', 'dlg2items', 'dlg2thread',
-           'items2chat', 'chat2dlg', 'items2dlg', 'thread2dlg', 'resolve_thread', 'prepare_compaction',
-           'append_compaction', 'compact_session']
+           'items2chat', 'items2dlg', 'thread2dlg', 'resolve_thread', 'prepare_compaction', 'append_compaction',
+           'compact_session']
 
 # %% ../nbs/04_oai.ipynb #d29693fa
 import base64, json, os, re, shutil, uuid
@@ -23,9 +23,9 @@ from openai_codex.generated.v2_all import ThreadInjectItemsResponse
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
 from fastllm.chat import Msg, Part, PartType, hist2fmt, data_url
-from .hist import dlg2chat
-from .dialog import *
-from .compact import *
+from aidialog.hist import dlg2chat, chat2dlg
+from aidialog.dialog import *
+from aidialog.compact import *
 import json5
 
 # %% ../nbs/04_oai.ipynb #fd091c3b
@@ -430,30 +430,6 @@ def items2chat(
         elif typ in ('reasoning','compaction'): continue
         else: raise ValueError(f'unsupported response item: {typ}')
     return msgs
-
-def chat2dlg(
-    msgs, # Canonical messages
-    name, # Dialog name
-    cls=Dialog, # Dialog class
-    mx=2000, # Maximum rendered tool string length; None disables truncation
-):
-    "A dialog for canonical messages, one prompt per user turn"
-    dlg,turns = cls(name=name),[]
-    for m in msgs:
-        if m.role=='user': turns.append((m,[]))
-        elif turns: turns[-1][1].append(m)
-        else: raise ValueError('msgs must start with a user message')
-    for u,replies in turns:
-        segs,atts = [],[]
-        for p in u.content:
-            if p.type==PartType.text: segs.append(p.text)
-            elif p.type==PartType.input_image:
-                mime,data = data_url(p.text)
-                atts.append(Attachment(base64.b64decode(data),mime))
-                segs.append(f'![](attachment:{atts[-1].id})')
-            else: raise ValueError(f'unsupported user part: {p.type}')
-        dlg.mk_message('\n\n'.join(segs),msg_type=sprompt,output=hist2fmt(replies,mx=mx),attachments=atts)
-    return dlg
 
 def items2dlg(
     items, # Responses API items

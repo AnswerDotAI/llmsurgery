@@ -16,9 +16,9 @@ Separately from transcripts, every prompt typed on this machine is appended to `
 
 ## Workflow
 
-Locate (`sess_file`, `cur_sess`, `resolve_session`), load (`load_sess`, or `load_recs` for any path), thread (`sess_thread`, `conv_recs`), search (`sess_search`, a regex over readable text returning match previews), read (`show_recs` for a slice, `sess2dlg` to browse a whole session as a dialog using the `llmsurgery.dlgskill` tools). Prefer `sess_search` over grepping the JSONL, which hits base64, signatures, and envelope noise.
+Locate (`sess_file`, `cur_sess`, `resolve_session`), load (`load_sess`, or `load_recs` for any path), thread (`sess_thread`, `conv_recs`), search (`sess_search`, a regex over readable text returning match previews), read (`show_recs` for a slice, `sess2dlg` to browse a whole session as a dialog using the `aidialog.dlgskill` tools). Prefer `sess_search` over grepping the JSONL, which hits base64, signatures, and envelope noise.
 
-Everything here is read-only. Writing, forking, and synthetic compaction live in `llmsurgery.ant` and `llmsurgery.compact`; read their docs before touching any transcript, since `save_sess` overwrites whole files.
+Everything here is read-only. Writing, forking, and synthetic compaction live in `llmsurgery.ant` and `aidialog.compact`; read their docs before touching any transcript, since `save_sess` overwrites whole files.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md
 """

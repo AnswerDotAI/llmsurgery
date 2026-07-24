@@ -9,10 +9,10 @@ __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'load_
            'canon', 'stable_uuid', 'mk_rec', 'save_sess', 'append_sess', 'msgs2recs', 'msgs2sess', 'mk_tu', 'mk_tr',
            'tool_turn', 'load_sess', 'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist',
            'prompt_hist', 'is_think_rec', 'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name',
-           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2chat', 'chat2dlg', 'sess2dlg', 'resolve_session',
-           'split_compaction', 'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction',
-           'compact_session', 'run_locked_agent', 'tool_reply', 'hold_result', 'defer_tools', 'prefix_tools',
-           'mk_deferred', 'no_prompt', 'QueryError', 'aquery_events']
+           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2chat', 'sess2dlg', 'resolve_session', 'split_compaction',
+           'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session',
+           'run_locked_agent', 'tool_reply', 'hold_result', 'defer_tools', 'prefix_tools', 'mk_deferred', 'no_prompt',
+           'QueryError', 'aquery_events']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import asyncio, base64, json, os, re, uuid
@@ -23,9 +23,9 @@ from fastcore.utils import *
 from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs
 from fastllm.chat import Msg, Part, PartType, mk_msg, hist2fmt, data_url
-from .hist import dlg2chat
-from .dialog import *
-from .compact import *
+from aidialog.hist import dlg2chat, chat2dlg
+from aidialog.dialog import *
+from aidialog.compact import *
 
 # %% ../nbs/03_ant.ipynb #66bb9972
 SESSIONS = Path.home()/'.claude'/'projects'
@@ -482,31 +482,6 @@ def recs2chat(
                 data=dict(id=b['tool_use_id'], name=names.get(b['tool_use_id']))) for b in c]))
         else: msgs.append(_norm_user(c))
     return msgs
-
-# %% ../nbs/03_ant.ipynb #ac13833a
-def chat2dlg(
-    msgs, # Canonical messages, e.g. from `recs2chat`
-    name, # Dialog name
-    cls=Dialog, # Dialog class to create
-    mx=2000, # Maximum characters per rendered tool input/output string; None disables truncation (see `hist2fmt`)
-):
-    "A dialog for `msgs`: one prompt per user turn, replies rendered in the format `fmt2hist` parses"
-    dlg,turns = cls(name=name),[]
-    for m in msgs:
-        if m.role=='user': turns.append((m,[]))
-        elif turns: turns[-1][1].append(m)
-        else: raise ValueError('msgs must start with a user message')
-    for u,rs in turns:
-        segs,atts = [],[]
-        for p in u.content:
-            if p.type==PartType.text: segs.append(p.text)
-            elif p.type==PartType.input_image:
-                mime,data = data_url(p.text)
-                atts.append(Attachment(base64.b64decode(data), mime))
-                segs.append(f'![](attachment:{atts[-1].id})')
-            else: raise ValueError(f'unsupported user part: {p.type}')
-        dlg.mk_message('\n\n'.join(segs), msg_type=sprompt, output=hist2fmt(rs, mx=mx), attachments=atts)
-    return dlg
 
 # %% ../nbs/03_ant.ipynb #abc4a08a
 def sess2dlg(

@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = ['nbformat', 'fastcore>=2.1.4', 'python-fastllm>=0.0.28']
+dependencies = ['nbformat', 'fastcore>=2.1.4', 'python-fastllm>=0.0.28', 'aidialog']
 
 [project.optional-dependencies]
 dev = ['exhash', 'openai-codex', 'claude-agent-sdk', 'json5']
@@ -28,7 +28,6 @@ Documentation = "https://AnswerDotAI.github.io/llmsurgery/"
 llmsurgery = "llmsurgery._modidx:d"
 
 [project.entry-points.pyskills]
-"llmsurgery.dlgskill" = "llmsurgery.dlgskill"
 "llmsurgery.antskill" = "llmsurgery.antskill"
 
 [tool.setuptools.dynamic]
