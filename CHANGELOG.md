@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.7
+
+### New Features
+
+- Move hist and compact modules into llmsurgery, replace antskill with unified skill entry point, and add Codex `web_search_call` support ([#17](https://github.com/AnswerDotAI/llmsurgery/issues/17))
+
+
 ## 0.0.6
 
 ### New Features
