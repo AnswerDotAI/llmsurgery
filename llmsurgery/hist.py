@@ -19,7 +19,7 @@ from fastcore.utils import *
 from fastcore.xtras import detect_mime
 from fastcore.nbio import item2xml
 from fastcore.xml import to_xml, Media, MediaUnavailable
-from fastllm.chat import re_token, re_tools, MediaUrl, mk_msg, fmt2hist, hist2fmt, data_url, Msg, mk_tr_details
+from fastllm.chat import strip_tools, MediaUrl, mk_msg, fmt2hist, hist2fmt, data_url, Msg, mk_tr_details
 from fastllm.types import PartType, Part, ToolCall, mk_tool_res_msg
 from aidialog.dialog import *
 
@@ -30,8 +30,8 @@ def jwrap(txts:list=['']):
 
 # %% ../nbs/01_hist.ipynb #6df26e0a
 def strip_tool_blocks(s):
-    "Remove the tool-call and token-usage details blocks (the fastllm reply conventions) from reply text `s`"
-    return re_tools.sub('', re_token.sub('', s))
+    "Remove the tool-call and usage wire blocks (the fastllm reply conventions) from reply text `s`"
+    return strip_tools(s)
 
 def ai_fmt(out, strip_tools=False):
     "Format AI response as it will be attached to the chat history"
