@@ -11,9 +11,11 @@ pip install llmsurgery
 
 ## What’s here
 
-Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code with outputs, and prompt/reply pairs in one editable, diffable document. The dialog data model and toolkit live in [aidialog](https://github.com/AnswerDotAI/aidialog); this library is the surgery layer for provider session files, built on that model:
+Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code with outputs, and prompt/reply pairs in one editable, diffable document. The dialog data model and toolkit live in [aidialog](https://github.com/AnswerDotAI/aidialog). This library contains the fastllm and provider-session layers:
 
-- `llmsurgery.ant`: Claude Code session transcripts: read, write, search, curate, and build them from dialogs, so `claude --resume` opens an authored conversation.
-- `llmsurgery.oai`: Codex threads: read rollouts, and inject authored histories via the `openai-codex` SDK, ready for `codex resume`.
+- `llmsurgery.hist`: conversions between aidialog dialogs, fastllm chat histories, and formatted replies.
+- `llmsurgery.compact`: bounded conversation rendering and compaction documents.
+- `llmsurgery.ant`: Claude Code session transcripts, including reading, writing, search, curation, compaction, and dialog conversion.
+- `llmsurgery.oai`: Codex rollouts, including reading, search, compaction, and dialog conversion.
 
-Both sides include DSL-based compaction of long sessions (the document format is `aidialog.compact`’s), and `llmsurgery.antskill` packages the read-only Claude Code session tools as a pyskill.
+`llmsurgery.skill` is the single pyskills entry point. It routes agents to `doc(llmsurgery.ant)` for Claude sessions, `doc(llmsurgery.oai)` for Codex sessions, and the history or compaction modules when those conversions are needed.
