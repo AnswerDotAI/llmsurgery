@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.0.8
+
+### New Features
+
+- Use the message model from aidialog rather than fastllm ([#19](https://github.com/AnswerDotAI/llmsurgery/pull/19)), thanks to [@jph00](https://github.com/jph00)
+- Refactor tool-call wire format: replace details-block parsing with strip_tools, simplify JSON tool schema ([#18](https://github.com/AnswerDotAI/llmsurgery/issues/18))
+
+
 ## 0.0.7
 
 ### New Features
