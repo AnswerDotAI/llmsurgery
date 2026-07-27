@@ -11,7 +11,7 @@ __all__ = ['compact_policy', 'tool_part', 'tool_result', 'compact_enc', 'enc_tok
 # %% ../nbs/02_compact.ipynb #de23b4fe
 from fastcore.utils import *
 from functools import cache
-from fastllm.types import PartType,Part,Msg
+from aidialog.msg_parts import PartType,Part,Msg
 
 import re
 try: import tiktoken
@@ -201,7 +201,7 @@ def join_compacts(*parts):
     return '\n\n***\n\n'.join(part for part in parts if part)
 
 # %% ../nbs/02_compact.ipynb #0f5f4c5e
-from fastllm.chat import fmt2hist
+from aidialog.msg_parts import fmt2hist
 from aidialog.dialog import *
 
 # %% ../nbs/02_compact.ipynb #1f0614f1
