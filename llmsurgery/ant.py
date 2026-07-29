@@ -12,7 +12,9 @@ Claude also appends every typed prompt to `~/.claude/history.jsonl`, with its pr
 
 ## Reading workflow
 
-Locate with `sess_file`, `cur_sess`, or `resolve_session`; load with `load_sess`, or `load_recs` for an arbitrary path; select the active thread with `sess_thread` and `conv_recs`; search readable text with `sess_search`; then read a slice with `show_recs` or convert the session to an aidialog `Dialog` with `sess2dlg`. Prefer `sess_search` to grepping JSONL, since raw files contain base64 data, signatures, and envelope noise.
+To find something that was said - an earlier discussion, a decision, work lost to compaction - start with `sess2dlg`, not with the records. It costs a fraction of a second even on a 50MB transcript, and turns tens of thousands of records into a dialog of a few dozen messages: `d.summary()` is the map (one sized row per message, a prompt's reply on its own line), `d.find_msgs(pat)` the search, `view_msg`/`view_msgs` the read. `doc(aidialog.dlgskill)` covers that layer, and a dialog written with `write_ipynb` is an ordinary ipynb whose prompt sources carry their replies, so `rgapi`'s `nbrg` searches saved sessions across files, replies included.
+
+Work at the record level for surgery, or when a record's envelope is itself the question: locate with `sess_file`, `cur_sess`, or `resolve_session`; load with `load_sess`, or `load_recs` for an arbitrary path; select the active thread with `sess_thread` and `conv_recs`; search readable text with `sess_search`, whose hits each carry their record on `.rec`; read a slice with `show_recs`. Prefer `sess_search` to grepping JSONL, since raw files contain base64 data, signatures, and envelope noise.
 
 Reading functions do not modify transcripts. `save_sess`, `append_sess`, `fork_sess`, and the compaction functions do. Read their docs and inspect the target records before calling them; `save_sess` replaces a whole session file.
 
@@ -272,13 +274,23 @@ def rec_role(
     return r['type']
 
 # %% ../nbs/03_ant.ipynb #defb1a03
+def _trunc_sz(s, mx):
+    "Truncate `s` to `mx` characters, ending in a humanized `[size]` when it was cut"
+    return truncstr(s, mx, suf=f'…[{humanize(len(s))}]')
+
 def _preview(t, m, maxlen):
     h = maxlen//2
     s,e = max(0,m.start()-h),min(len(t),m.end()+h)
-    return ('…' if s else '')+t[s:e].replace('\n',' ')+('…' if e<len(t) else '')
+    res = ('…' if s else '')+t[s:e].replace('\n',' ')+('…' if e<len(t) else '')
+    return res+f'[{humanize(len(t))}]' if s or e<len(t) else res
 
-class SessHits(list):
-    "Search hits with a match-centered preview per line"
+class SessHits(L):
+    "Search hits with a match-centered preview per line, each carrying its record on `.rec`"
+    recs = None # Every record searched, set by `sess_search`; carried through selections
+    def _new(self, items, *args, **kw):
+        res = super()._new(items, *args, **kw)
+        res.recs = self.recs
+        return res
     def __repr__(self): return '\n'.join(f"{h.i:5} {h.role:9} {h.ts[:16]} {h.preview}" for h in self)
 
 def sess_search(
@@ -288,7 +300,7 @@ def sess_search(
     maxlen=160, # Preview characters shown around a hit's first match
     recs=None, # Already-loaded records; if given, `sid` and `cwd` are ignored
 ):
-    "Search conversation records, returning `SessHits` with the records on `.recs`"
+    "Search conversation records: `SessHits` rows, each carrying its own record on `.rec`, with every searched record on `.recs`"
     recs = conv_recs(load_sess(sid,cwd) if recs is None else recs)
     res = SessHits()
     for i,r in enumerate(recs):
@@ -305,7 +317,7 @@ def show_recs(
     "A readable transcript of records in `recs`; conversation records only unless `showall`"
     def _s(r):
         t = rec_txt(r)
-        if len(t)>mx: t = t[:mx]+f'…[+{len(t)-mx} chars]'
+        t = _trunc_sz(t, mx)
         role = rec_role(r) if r.get('type') in ('user','assistant') else ':'.join(filter(None,(r.get('type'),r.get('subtype'))))
         return f"--- {role} {r.get('timestamp','')[:19]} ---\n{t}"
     return PrettyString('\n'.join(_s(r) for r in (recs if showall else conv_recs(recs))))
@@ -313,7 +325,7 @@ def show_recs(
 # %% ../nbs/03_ant.ipynb #343ac533
 class PromptHist(list):
     "Prompt-history rows in local time, one line per prompt"
-    def __repr__(self): return '\n'.join(f"{h.ts:%Y-%m-%d %H:%M} {Path(h.project).name:>12} {h.display.replace(chr(10),' ')[:120]}" for h in self)
+    def __repr__(self): return '\n'.join(f"{h.ts:%Y-%m-%d %H:%M} {Path(h.project).name:>12} {_trunc_sz(h.display.replace(chr(10),' '), 120)}" for h in self)
 
 def prompt_hist(
     project=None, # Only prompts for the project at this directory; all projects if None
@@ -525,7 +537,8 @@ def sess2dlg(
             if u := nested_idx(r,'message','usage'): prompts[t].meta['usage'] = u
         elif r['type']=='system':
             kw = dict(after=anchor) if anchor else dict(idx=0)
-            anchor = dlg.mk_message('', msg_type=sraw, meta=dict(rec_kind='system',rec=r), **kw)
+            kind = ':'.join(filter(None,(r['type'],r.get('subtype'))))
+            anchor = dlg.mk_message('', msg_type=sraw, meta=dict(rec_kind=kind,rec=r), **kw)
     return dlg
 
 # %% ../nbs/03_ant.ipynb #3991610a

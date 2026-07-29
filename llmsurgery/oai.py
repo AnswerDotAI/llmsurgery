@@ -12,7 +12,9 @@ Codex has no separate machine-wide prompt-history file. User messages remain in 
 
 ## Reading workflow
 
-Locate with `cur_thread`, `project_thread`, or `resolve_thread`; load with `load_rollout`; extract the current model history with `active_items`; search readable content with `item_search`; then inspect a slice with `show_items` or convert the thread to an aidialog `Dialog` with `thread2dlg`. Prefer `item_search` to grepping JSONL, since raw rollouts contain protocol events and encoded data.
+To find something that was said - an earlier discussion, a decision, work lost to compaction - start with `thread2dlg`, not with the records. It is near-instant, and turns a long event log into a dialog of a few dozen messages: `d.summary()` is the map (one sized row per message, a prompt's reply on its own line), `d.find_msgs(pat)` the search, `view_msg`/`view_msgs` the read. `doc(aidialog.dlgskill)` covers that layer, and a dialog written with `write_ipynb` is an ordinary ipynb whose prompt sources carry their replies, so `rgapi`'s `nbrg` searches saved threads across files, replies included.
+
+Work at the record level for surgery, or when an item's envelope is itself the question: locate with `cur_thread`, `project_thread`, or `resolve_thread`; load with `load_rollout`; extract the current model history with `active_items`; search readable content with `item_search`, whose hits each carry their item on `.item`; inspect a slice with `show_items`. Prefer `item_search` to grepping JSONL, since raw rollouts contain protocol events and encoded data.
 
 The reading functions do not modify rollouts. App-server owns ordinary thread creation, forking, naming, and native compaction. The synthetic compaction append functions write rollout JSONL directly and require Codex to be closed. Read their docs and inspect the prepared records before appending them.
 
@@ -269,8 +271,17 @@ def conv_items(items):
     kinds = {'message','function_call','function_call_output','custom_tool_call','custom_tool_call_output'}
     return L(o for o in items if o.get('type') in kinds)
 
-class ItemHits(list):
-    "Search hits with one match-centered preview per line"
+def _trunc_sz(s, mx):
+    "Truncate `s` to `mx` characters, ending in a humanized `[size]` when it was cut"
+    return truncstr(s, mx, suf=f'…[{humanize(len(s))}]')
+
+class ItemHits(L):
+    "Search hits with one match-centered preview per line, each carrying its item on `.item`"
+    hist = None # Every item searched, set by `item_search`; carried through selections
+    def _new(self, items, *args, **kw):
+        res = super()._new(items, *args, **kw)
+        res.hist = self.hist
+        return res
     def __repr__(self): return '\n'.join(f"{h.i:5} {h.role:10} {h.preview}" for h in self)
 
 def item_search(
@@ -278,7 +289,7 @@ def item_search(
     items, # Responses items
     maxlen=160, # Preview characters around the match
 ):
-    "Search model-visible Responses items"
+    "Search model-visible Responses items: `ItemHits` rows, each carrying its own item on `.item`, with every searched item on `.hist`"
     items,res = conv_items(items),ItemHits()
     for i,o in enumerate(items):
         text = item_txt(o)
@@ -286,8 +297,9 @@ def item_search(
             h = maxlen//2
             s,e = max(0,m.start()-h),min(len(text),m.end()+h)
             preview = ('…' if s else '')+text[s:e].replace('\n',' ')+('…' if e<len(text) else '')
+            if s or e<len(text): preview += f'[{humanize(len(text))}]'
             res.append(AttrDict(i=i,role=item_role(o),preview=preview,item=o))
-    res.items = items
+    res.hist = items
     return res
 
 def show_items(
@@ -298,7 +310,7 @@ def show_items(
     rows = []
     for o in conv_items(items):
         text = item_txt(o)
-        if len(text)>mx: text = text[:mx]+f'…[+{len(text)-mx} chars]'
+        text = _trunc_sz(text, mx)
         rows.append(f"--- {item_role(o)}:{o['type']} ---\n{text}")
     return PrettyString('\n'.join(rows))
 
@@ -306,7 +318,7 @@ def show_items(
 class PromptHist(list):
     "Codex prompt-history rows, one line per user message"
     def __repr__(self):
-        return '\n'.join(f"{h.ts[:16]} {Path(h.project).name:>12} {h.thread[:8]} {h.text.replace(chr(10),' ')[:100]}" for h in self)
+        return '\n'.join(f"{h.ts[:16]} {Path(h.project).name:>12} {h.thread[:8]} {_trunc_sz(h.text.replace(chr(10),' '), 100)}" for h in self)
 
 def prompt_hist(
     project=None, # Only rollouts whose session cwd is this path
@@ -318,7 +330,7 @@ def prompt_hist(
     rows = []
     for path in (Path(codex_home)/'sessions').rglob('*.jsonl'):
         recs = load_recs(path)
-        meta = first((r.payload for r in recs if r.get('type')=='session_meta'), {})
+        meta = first(r.payload for r in recs if r.get('type')=='session_meta') or {}
         tid,cwd = meta.get('id'),meta.get('cwd','')
         if project and cwd!=str(Path(project).expanduser().resolve()): continue
         for r in recs:
