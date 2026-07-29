@@ -41,7 +41,7 @@ from openai_codex.generated.v2_all import ThreadInjectItemsResponse
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
 from aidialog.msg_parts import Msg, Part, PartType, hist2fmt, data_url
-from .hist import dlg2chat, chat2dlg
+from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
 import json5

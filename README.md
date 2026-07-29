@@ -11,11 +11,10 @@ pip install llmsurgery
 
 ## What’s here
 
-Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code with outputs, and prompt/reply pairs in one editable, diffable document. The dialog data model and toolkit live in [aidialog](https://github.com/AnswerDotAI/aidialog). This library contains the fastllm and provider-session layers:
+Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code with outputs, and prompt/reply pairs in one editable, diffable document. The dialog data model and toolkit live in [aidialog](https://github.com/AnswerDotAI/aidialog). This library contains the provider-session layers:
 
-- `llmsurgery.hist`: conversions between aidialog dialogs, fastllm chat histories, and formatted replies.
 - `llmsurgery.compact`: bounded conversation rendering and compaction documents.
 - `llmsurgery.ant`: Claude Code session transcripts, including reading, writing, search, curation, compaction, and dialog conversion.
 - `llmsurgery.oai`: Codex rollouts, including reading, search, compaction, and dialog conversion.
 
-`llmsurgery.skill` is the single pyskills entry point. It routes agents to `doc(llmsurgery.ant)` for Claude sessions, `doc(llmsurgery.oai)` for Codex sessions, and the history or compaction modules when those conversions are needed.
+`llmsurgery.skill` is the single pyskills entry point. It routes agents to `doc(llmsurgery.ant)` for Claude sessions, `doc(llmsurgery.oai)` for Codex sessions, and the compaction module when bounded rendering is needed.

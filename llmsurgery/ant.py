@@ -42,7 +42,7 @@ from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs
 from fastllm.chat import mk_msg
 from aidialog.msg_parts import Msg, Part, PartType, hist2fmt, data_url
-from .hist import dlg2chat, chat2dlg
+from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
 
