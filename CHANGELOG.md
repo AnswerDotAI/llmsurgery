@@ -2,12 +2,26 @@
 
 <!-- do not remove -->
 
+## 0.0.9
+
+### New Features
+
+- Add dlg2compact flat-document projection and table-driven `call_renderers` dispatch ([#22](https://github.com/AnswerDotAI/llmsurgery/issues/22))
+- Move hist module from llmsurgery to aidialog ([#21](https://github.com/AnswerDotAI/llmsurgery/issues/21))
+- Point session-reading docs at dialogs first, and make search hits `L`-based with sized truncation previews ([#20](https://github.com/AnswerDotAI/llmsurgery/issues/20))
+
+### Bugs Squashed
+
+- Fix CI: add tiktoken to required dependencies ([#14](https://github.com/AnswerDotAI/llmsurgery/pull/14)), thanks to [@ncoop57](https://github.com/ncoop57)
+- add missing deps ([#11](https://github.com/AnswerDotAI/llmsurgery/pull/11)), thanks to [@RensDimmendaal](https://github.com/RensDimmendaal)
+
+
 ## 0.0.8
 
 ### New Features
 
 - Use the message model from aidialog rather than fastllm ([#19](https://github.com/AnswerDotAI/llmsurgery/pull/19)), thanks to [@jph00](https://github.com/jph00)
-- Refactor tool-call wire format: replace details-block parsing with strip_tools, simplify JSON tool schema ([#18](https://github.com/AnswerDotAI/llmsurgery/issues/18))
+- Refactor tool-call wire format: replace details-block parsing with `strip_tools`, simplify JSON tool schema ([#18](https://github.com/AnswerDotAI/llmsurgery/issues/18))
 
 
 ## 0.0.7
