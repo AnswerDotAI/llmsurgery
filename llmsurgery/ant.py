@@ -86,8 +86,10 @@ def sess_thread(
     "The records on the active conversation chain, walking `parentUuid` back from the last record"
     recs = L(r for r in recs if r.get('type') in ('user','assistant','attachment','system') and r.get('uuid'))
     byid = {r.uuid:r for r in recs}
-    cur,res = recs[-1],[]
+    cur,res,seen = recs[-1],[],set()
     while cur is not None:
+        if cur.uuid in seen: raise ValueError(f'parentUuid cycle at record uuid {cur.uuid}')
+        seen.add(cur.uuid)
         res.append(cur)
         cur = byid.get(cur.get('parentUuid'))
     return L(reversed(res))
@@ -157,6 +159,16 @@ def mk_rec(
     return dict(r, **kwargs)
 
 # %% ../nbs/03_ant.ipynb #ba9f2c9f
+def _chain(recs, sid, prev, ts, used=()):
+    "Chain `recs` for session `sid` after uuid `prev`, refusing duplicate uuids (a cycle on disk otherwise)"
+    seen = set(used)
+    for r in recs:
+        if (u := r['uuid']) in seen: raise ValueError(f'duplicate record uuid {u}')
+        seen.add(u)
+        r['sessionId'],r['parentUuid'],prev = sid,prev,u
+        if ts: r['timestamp'] = _now() if ts is True else ts
+        if 'session_id' in r: r['session_id'] = sid
+
 def save_sess(
     recs, # Records in conversation order, e.g. from `mk_rec`
     sid=None, # Session id; a fresh uuid if None
@@ -164,11 +176,8 @@ def save_sess(
     ts=None, # If given, stamp every record's timestamp: True for the current time, or an ISO8601 string
 ):
     "Chain `recs`, write them as session `sid` for the project at `cwd`, and return `sid`"
-    sid,prev = sid or str(uuid.uuid4()),None
-    for r in recs:
-        r['sessionId'],r['parentUuid'],prev = sid,prev,r['uuid']
-        if ts: r['timestamp'] = _now() if ts is True else ts
-        if 'session_id' in r: r['session_id'] = sid
+    sid = sid or str(uuid.uuid4())
+    _chain(recs, sid, None, ts)
     f = sess_file(sid, cwd or '.')
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(''.join(xdumps(r)+'\n' for r in recs))
@@ -183,11 +192,8 @@ def append_sess(
 ):
     "Chain `recs` onto the tail of session `sid` and append them to its transcript, returning `sid`"
     sid = sid or cur_sess(cwd)
-    prev = last(r['uuid'] for r in load_sess(sid, cwd) if 'uuid' in r)
-    for r in recs:
-        r['sessionId'],r['parentUuid'],prev = sid,prev,r['uuid']
-        if ts: r['timestamp'] = _now() if ts is True else ts
-        if 'session_id' in r: r['session_id'] = sid
+    old = [r['uuid'] for r in load_sess(sid, cwd) if 'uuid' in r]
+    _chain(recs, sid, last(old), ts, old)
     with sess_file(sid, cwd).open('a') as f: f.writelines(xdumps(r)+'\n' for r in recs)
     return sid
 

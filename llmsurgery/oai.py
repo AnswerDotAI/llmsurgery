@@ -27,9 +27,8 @@ __all__ = ['CODEX_HOME', 'cur_thread', 'rollout_file', 'load_recs', 'load_rollou
            'response_items', 'split_compaction', 'active_items', 'codex_msg', 'codex_call', 'codex_output',
            'parse_exec', 'exec_input', 'codex_custom_call', 'codex_custom_output', 'reid_items', 'codex_client',
            'tool_turn', 'custom_turn', 'item_txt', 'item_role', 'conv_items', 'ItemHits', 'item_search', 'show_items',
-           'PromptHist', 'prompt_hist', 'strip_reasoning', 'trunc_tools', 'curate_items', 'dlg2items', 'dlg2thread',
-           'items2chat', 'items2dlg', 'thread2dlg', 'resolve_thread', 'prepare_compaction', 'append_compaction',
-           'compact_session']
+           'PromptHist', 'prompt_hist', 'strip_reasoning', 'trunc_tools', 'curate_items', 'dlg2items', 'items2chat',
+           'items2dlg', 'thread2dlg', 'resolve_thread', 'prepare_compaction', 'append_compaction', 'compact_session']
 
 # %% ../nbs/04_oai.ipynb #d29693fa
 import base64, json, os, re, shutil, uuid
@@ -383,9 +382,10 @@ def curate_items(
 def _customize_items(items):
     items,customs = list(items),set()
     for i,o in enumerate(items):
-        if o['type']=='function_call' and o['name'].startswith('tools.'):
+        if o['type']=='function_call' and o['name'].startswith(('tools.','mcp__')):
+            name = o['name'] if o['name'].startswith('tools.') else 'tools.'+o['name']   # host-neutral dialogs carry the bare MCP name
             customs.add(o['call_id'])
-            items[i] = codex_custom_call(o['name'],json.loads(o['arguments']),o['call_id'])
+            items[i] = codex_custom_call(name,json.loads(o['arguments']),o['call_id'])
         elif o['type']=='function_call_output' and o['call_id'] in customs: items[i] = codex_custom_output(o['call_id'],o['output'])
     return L(items)
 
@@ -407,17 +407,6 @@ def dlg2items(
             t += 1
         out.append(o)
     return L([*out,*raws.get(t,[])])
-
-async def dlg2thread(
-    dlg, # Dialog to convert
-    cwd=None, # Project directory
-    codex_home=None, # Codex home
-    **kwargs, # Passed to thread/start
-):
-    "Create a persisted Codex thread whose history is `dlg`"
-    async with CodexAppServer(codex_home=codex_home) as app:
-        thread = await app.create_thread(reid_items(dlg2items(dlg),dlg.name),cwd=cwd,**kwargs)
-    return thread.id
 
 # %% ../nbs/04_oai.ipynb #7b73e471
 def _output_text(output):
