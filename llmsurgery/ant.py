@@ -41,7 +41,7 @@ from fastcore.utils import *
 from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs
 from fastllm.chat import mk_msg
-from aidialog.msg_parts import Msg, Part, PartType
+from aidialog.msg_parts import Msg, Part, Text, Thinking, ToolUse, ToolResult
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
@@ -506,17 +506,17 @@ def recs2chat(
         if r['type']=='assistant':
             parts = []
             for b in c:
-                if b['type']=='text': parts.append(Part(type=PartType.text, text=b['text']))
-                elif b['type']=='thinking': parts.append(Part(type=PartType.thinking, text=b.get('thinking','')))
+                if b['type']=='text': parts.append(Text(b['text']))
+                elif b['type']=='thinking': parts.append(Thinking(b.get('thinking','')))
                 elif b['type']=='tool_use':
                     names[b['id']] = b['name']
-                    parts.append(Part(type=PartType.tool_use, data=dict(id=b['id'], name=b['name'], arguments=b.get('input', {}))))
+                    parts.append(ToolUse(id=b['id'], name=b['name'], arguments=b.get('input', {})))
                 else: raise ValueError(f"unsupported assistant block: {b['type']}")
             msgs.append(Msg(role='assistant', content=parts))
         elif rec_role(r)=='tool':
             if not all(b.get('type')=='tool_result' for b in c): raise ValueError('record mixes tool_result with other blocks')
-            msgs.append(Msg(role='tool', content=[Part(type=PartType.tool_result, text=_tr_txt(b),
-                data=dict(id=b['tool_use_id'], name=names.get(b['tool_use_id']))) for b in c]))
+            msgs.append(Msg(role='tool', content=[ToolResult(id=b['tool_use_id'], name=names.get(b['tool_use_id']),
+                text=_tr_txt(b)) for b in c]))
         else: msgs.append(_norm_user(c))
     return msgs
 

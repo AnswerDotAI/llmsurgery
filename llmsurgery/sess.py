@@ -21,7 +21,7 @@ __all__ = ['injected_starts', 'find_sess', 'sess_chat', 'sess_dlg', 'sess2nb']
 from fastcore.script import call_parse, is_cli
 from fastcore.utils import *
 import re
-from aidialog.msg_parts import Msg, PartType
+from aidialog.msg_parts import Msg, Text, ToolUse
 from aidialog.hist import chat2dlg
 from aidialog.ipynb import write_ipynb
 from . import ant, oai
@@ -46,7 +46,7 @@ injected_starts = (
     '<system-reminder>', '<local-command-stdout>', '<command-name>', '<environment_context>',
     '# AGENTS.md instructions for')
 
-def _msg_txt(m): return ''.join(p.text or '' for p in m.content if p.type==PartType.text)
+def _msg_txt(m): return ''.join(p.text or '' for p in m.content if isinstance(p, Text))
 
 def _injected(m):
     if m.role!='user': return False
@@ -57,7 +57,7 @@ def _no_tools(msgs):
     res = []
     for m in msgs:
         if m.role=='tool': continue
-        if ps := [p for p in m.content if p.type!=PartType.tool_use]: res.append(Msg(role=m.role, content=ps))
+        if ps := [p for p in m.content if not isinstance(p, ToolUse)]: res.append(Msg(role=m.role, content=ps))
     return res
 
 # %% ../nbs/05_sess.ipynb #9f4cc9c1
@@ -103,5 +103,5 @@ def sess2nb(
     dlg = sess_dlg(ref, mx=mx, since_compact=since_compact, strip_tools=strip_tools)
     path = Path(Out) if Out else Path(f'{dlg.name}.ipynb')
     write_ipynb(dlg, path)
-    if is_cli(): print(f'{path}: {len(dlg.messages)} messages')
+    if is_cli(sess2nb): print(f'{path}: {len(dlg.messages)} messages')
     else: return path

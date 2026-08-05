@@ -39,7 +39,7 @@ from openai_codex.api import AsyncThread
 from openai_codex.generated.v2_all import ThreadInjectItemsResponse
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
-from aidialog.msg_parts import Msg, Part, PartType
+from aidialog.msg_parts import Msg, Part, Text, InputImage, ToolUse, ToolResult
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
@@ -416,8 +416,8 @@ def _output_text(output):
 def _msg_parts(content):
     parts = []
     for c in content:
-        if c['type'] in ('input_text','output_text'): parts.append(Part(type=PartType.text,text=c['text']))
-        elif c['type']=='input_image': parts.append(Part(type=PartType.input_image,text=c['image_url']))
+        if c['type'] in ('input_text','output_text'): parts.append(Text(c['text']))
+        elif c['type']=='input_image': parts.append(InputImage(c['image_url']))
         else: raise ValueError(f"unsupported message content: {c['type']}")
     return parts
 
@@ -438,18 +438,16 @@ def items2chat(
                 customs.add(o['call_id'])
             else: name,args = o['name'],json.loads(o.get('arguments') or '{}')
             names[o['call_id']] = name
-            msgs.append(Msg(role='assistant',content=[Part(type=PartType.tool_use,
-                data=dict(id=o['call_id'],name=name,arguments=args))]))
+            msgs.append(Msg(role='assistant',content=[ToolUse(id=o['call_id'],name=name,arguments=args)]))
         elif typ in ('function_call_output','custom_tool_call_output'):
             cid = o['call_id']
-            msgs.append(Msg(role='tool',content=[Part(type=PartType.tool_result,text=_output_text(o.get('output','')),
-                data=dict(id=cid,name=names.get(cid),custom=cid in customs))]))
+            msgs.append(Msg(role='tool',content=[ToolResult(id=cid,name=names.get(cid),text=_output_text(o.get('output','')),
+                raw=dict(custom=cid in customs))]))
         elif typ=='web_search_call':
             cid = o.get('id') or f'ws_{len(msgs)}'
-            msgs.append(Msg(role='assistant',content=[Part(type=PartType.tool_use,
-                data=dict(id=cid,name='web_search',arguments=o.get('action') or {}))]))
-            msgs.append(Msg(role='tool',content=[Part(type=PartType.tool_result,text=f"server tool {o.get('status','completed')}",
-                data=dict(id=cid,name='web_search',custom=False))]))
+            msgs.append(Msg(role='assistant',content=[ToolUse(id=cid,name='web_search',arguments=o.get('action') or {})]))
+            msgs.append(Msg(role='tool',content=[ToolResult(id=cid,name='web_search',text=f"server tool {o.get('status','completed')}",
+                raw=dict(custom=False))]))
         elif typ in ('reasoning','compaction','ghost_snapshot','tool_search_call','tool_search_output'): continue
         else: raise ValueError(f'unsupported response item: {typ}')
     return msgs

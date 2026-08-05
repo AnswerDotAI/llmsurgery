@@ -12,7 +12,7 @@ __all__ = ['call_renderers', 'compact_policy', 'tool_part', 'tool_result', 'comp
 # %% ../nbs/02_compact.ipynb #de23b4fe
 from fastcore.utils import *
 from functools import cache
-from aidialog.msg_parts import PartType,Part,Msg
+from aidialog.msg_parts import Part,Text,ToolUse,ToolResult,Msg
 
 import re
 try: import tiktoken
@@ -21,12 +21,12 @@ except ImportError: tiktoken = None
 # %% ../nbs/02_compact.ipynb #2fe68d07
 def tool_part(tool_name, **arguments):
     "Create a canonical tool-use part"
-    return Part(PartType.tool_use, data=dict(name=tool_name, arguments=arguments, id=f'call_{tool_name}'))
+    return ToolUse(id=f'call_{tool_name}', name=tool_name, arguments=arguments)
 
 def tool_result(text, tool_name=None):
     "Create a canonical tool-result message; pass `tool_name` to pair it with its `tool_part` call"
-    data = {'id':f'call_{tool_name}', 'name':tool_name} if tool_name else None
-    return Msg('tool', [Part(PartType.tool_result, text=text, data=data)])
+    tr = ToolResult(id=f'call_{tool_name}', name=tool_name, text=text) if tool_name else ToolResult(text=text)
+    return Msg('tool', [tr])
 
 # %% ../nbs/02_compact.ipynb #7ad24f5a
 _compact_enc_name = 'o200k_base'
@@ -110,7 +110,7 @@ call_renderers = dict(mcp__clikernel__execute=(fenced_code,'code'), py=(fenced_c
 
 def compact_call(p, max_toks, enc=None):
     "Render a tool-use part within `max_toks`, dispatching on `call_renderers`."
-    name, args = p.data['name'], p.data['arguments']
+    name, args = p.name, p.arguments
     if r := call_renderers.get(name.removeprefix('tools.')): return r[0](args.get(r[1], ''), max_toks, enc)
     return generic_call(name, args, max_toks, enc)
 
@@ -129,13 +129,13 @@ def compact_user_part(p, max_toks, enc=None):
 def compact_user(m, max_toks, enc=None):
     "Render the text parts of a user message, dropping plumbing parts."
     return '\n'.join(compact_user_part(p, max_toks, enc)
-        for p in m.content if p.type == PartType.text and not _plumbing(p.text))
+        for p in m.content if isinstance(p, Text) and not _plumbing(p.text))
 
 # %% ../nbs/02_compact.ipynb #c43c4e7e
 def compact_asst_part(p, text_toks, call_toks, enc=None):
     "Render one assistant part."
-    if p.type == PartType.text: return compact_text(p.text, '»', text_toks, enc)
-    if p.type == PartType.tool_use: return compact_call(p, call_toks, enc)
+    if isinstance(p, Text): return compact_text(p.text, '»', text_toks, enc)
+    if isinstance(p, ToolUse): return compact_call(p, call_toks, enc)
 
 def compact_asst(m, text_toks, call_toks, enc=None):
     "Render an assistant message."
@@ -146,7 +146,7 @@ def compact_asst(m, text_toks, call_toks, enc=None):
 def compact_tool(m, max_toks, enc=None):
     "Render the result parts of a tool message."
     return '\n'.join(compact_result(p.text, max_toks, enc)
-        for p in m.content if p.type == PartType.tool_result)
+        for p in m.content if isinstance(p, ToolResult))
 
 def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
     "Render one canonical message."
@@ -158,7 +158,7 @@ def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
 def _substantive(m):
     "Does the message render any content? Plumbing-only user messages do not, so they never spend `last_n` slots"
     if m.role != 'user': return True
-    return any(p.type == PartType.text and not _plumbing(p.text) for p in m.content)
+    return any(isinstance(p, Text) and not _plumbing(p.text) for p in m.content)
 
 def compact_chat(msgs, user_toks, asst_toks, call_toks, result_toks, enc=None, last_n=0):
     "Render canonical messages as compact user-led turns."
@@ -210,17 +210,17 @@ from aidialog.dialog import *
 def compact_reply(reply, asst_toks=None, call_toks=None, result_toks=None, enc=None, mark=''):
     "Render a prompt's reply in the DSL: prose (bare, or delimited by `mark`), each tool call followed by its result"
     msgs = fmt2hist(reply)
-    results = {p.data['id']:p for m in msgs if m.role=='tool' for p in m.content if p.type==PartType.tool_result}
+    results = {p.id:p for m in msgs if m.role=='tool' for p in m.content if isinstance(p, ToolResult)}
     atoks = ifnone(asst_toks, compact_policy['asst_toks'])
     out = []
     for m in msgs:
         if m.role != 'assistant': continue
         for p in m.content:
-            if p.type==PartType.text and p.text != '.':
+            if isinstance(p, Text) and p.text != '.':
                 out.append(compact_text(p.text, mark, atoks, enc) if mark else trunctoks_mid(p.text.strip(), atoks, enc))
-            elif p.type==PartType.tool_use:
+            elif isinstance(p, ToolUse):
                 out.append(compact_call(p, ifnone(call_toks, compact_policy['call_toks']), enc))
-                if r := results.get(p.data['id']): out.append(compact_result(r.text, ifnone(result_toks, compact_policy['result_toks']), enc))
+                if r := results.get(p.id): out.append(compact_result(r.text, ifnone(result_toks, compact_policy['result_toks']), enc))
     return '\n'.join(filter(None, out))
 
 # %% ../nbs/02_compact.ipynb #73962ff1
