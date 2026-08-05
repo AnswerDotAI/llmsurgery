@@ -102,8 +102,8 @@ def thread_id(
 def response_items(
     recs, # Rollout records
 ):
-    "Every Responses API item recorded in `recs`, including superseded history"
-    return L(obj2dict(r.payload) for r in recs if r.get('type')=='response_item')
+    "Every Responses API item recorded in `recs`, including superseded history; each item carries its envelope `timestamp`"
+    return L(dict(obj2dict(r.payload), **({'timestamp':r['timestamp']} if r.get('timestamp') else {})) for r in recs if r.get('type')=='response_item')
 
 def split_compaction(
     recs, # Rollout records
@@ -255,7 +255,7 @@ def _item_txts(o, skip=()):
 
 def item_txt(item):
     "Every readable string in a Responses item, joined"
-    return '\n'.join(_item_txts(obj2dict(item), skip=('type','id','call_id','encrypted_content','role','status','internal_chat_message_metadata_passthrough')))
+    return '\n'.join(_item_txts(obj2dict(item), skip=('type','id','call_id','timestamp','encrypted_content','role','status','internal_chat_message_metadata_passthrough')))
 
 def item_role(item):
     "Conversation role of a Responses item"
@@ -426,11 +426,15 @@ def items2chat(
 ):
     "Canonical fastllm messages for editable conversation items"
     msgs,names,customs = [],{},set()
+    def add(m):
+        m.meta = meta
+        msgs.append(m)
     for o in map(obj2dict,items):
         typ = o['type']
+        meta = {'created': o['timestamp']} if o.get('timestamp') else None
         if typ=='message':
             if o['role'] not in ('user','assistant'): continue
-            msgs.append(Msg(role=o['role'],content=_msg_parts(o['content'])))
+            add(Msg(role=o['role'],content=_msg_parts(o['content'])))
         elif typ in ('function_call','custom_tool_call'):
             if typ=='custom_tool_call':
                 p = parse_exec(o['input'])
@@ -438,15 +442,15 @@ def items2chat(
                 customs.add(o['call_id'])
             else: name,args = o['name'],json.loads(o.get('arguments') or '{}')
             names[o['call_id']] = name
-            msgs.append(Msg(role='assistant',content=[ToolUse(id=o['call_id'],name=name,arguments=args)]))
+            add(Msg(role='assistant',content=[ToolUse(id=o['call_id'],name=name,arguments=args)]))
         elif typ in ('function_call_output','custom_tool_call_output'):
             cid = o['call_id']
-            msgs.append(Msg(role='tool',content=[ToolResult(id=cid,name=names.get(cid),text=_output_text(o.get('output','')),
+            add(Msg(role='tool',content=[ToolResult(id=cid,name=names.get(cid),text=_output_text(o.get('output','')),
                 raw=dict(custom=cid in customs))]))
         elif typ=='web_search_call':
             cid = o.get('id') or f'ws_{len(msgs)}'
-            msgs.append(Msg(role='assistant',content=[ToolUse(id=cid,name='web_search',arguments=o.get('action') or {})]))
-            msgs.append(Msg(role='tool',content=[ToolResult(id=cid,name='web_search',text=f"server tool {o.get('status','completed')}",
+            add(Msg(role='assistant',content=[ToolUse(id=cid,name='web_search',arguments=o.get('action') or {})]))
+            add(Msg(role='tool',content=[ToolResult(id=cid,name='web_search',text=f"server tool {o.get('status','completed')}",
                 raw=dict(custom=False))]))
         elif typ in ('reasoning','compaction','ghost_snapshot','tool_search_call','tool_search_output'): continue
         else: raise ValueError(f'unsupported response item: {typ}')

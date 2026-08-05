@@ -27,21 +27,22 @@ __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'load_
            'canon', 'stable_uuid', 'mk_rec', 'save_sess', 'append_sess', 'msgs2recs', 'msgs2sess', 'mk_tu', 'mk_tr',
            'tool_turn', 'load_sess', 'conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist',
            'prompt_hist', 'is_think_rec', 'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name',
-           'fork_sess', 'dlg2msgs', 'dlg2sess', 'recs2chat', 'sess2dlg', 'resolve_session', 'split_compaction',
-           'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session',
-           'run_locked_agent', 'tool_reply', 'hold_result', 'defer_tools', 'prefix_tools', 'mk_deferred', 'no_prompt',
-           'QueryError', 'aquery_events']
+           'fork_sess', 'dlg2msgs', 'dlg2sess', 'ToolReference', 'recs2chat', 'sess2dlg', 'resolve_session',
+           'split_compaction', 'sess_meta', 'compact_records', 'prepare_compaction', 'append_compaction',
+           'compact_session', 'run_locked_agent', 'tool_reply', 'hold_result', 'defer_tools', 'prefix_tools',
+           'mk_deferred', 'no_prompt', 'QueryError', 'aquery_events']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import asyncio, base64, json, os, re, uuid
+from dataclasses import dataclass
 from claude_agent_sdk import (query, tool, create_sdk_mcp_server, ClaudeAgentOptions,
     HookMatcher, AssistantMessage, TextBlock, StreamEvent, ResultMessage)
 from datetime import datetime, timezone
 from fastcore.utils import *
 from fastcore.meta import delegates
-from fastllm.anthropic import denorm_msgs
+from fastllm.anthropic import denorm_msgs, norm_tr_parts
 from fastllm.chat import mk_msg
-from aidialog.msg_parts import Msg, Part, Text, Thinking, ToolUse, ToolResult
+from aidialog.msg_parts import Msg, Part, Text, Thinking, ToolUse, ToolResult, tool_text
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
@@ -477,12 +478,19 @@ def dlg2sess(
         recs = out
     return save_sess(recs, stable_uuid(f'{key}:{dlg.name}'), cwd)
 
+# %% ../nbs/03_ant.ipynb #1cf53a7a
+@dataclass
+class ToolReference(Part, tag='tool_reference'):
+    "A deferred-tool reference in a Claude Code tool result"
+    tool_name: str = ''
+
+@patch(as_prop=True)
+def formatted(self:ToolReference): return f'<tool_reference tool="{self.tool_name}"/>'
+
 # %% ../nbs/03_ant.ipynb #16af5ac6
 def _tr_txt(b):
     c = b.get('content', '')
-    if isinstance(c, str): return c
-    if any(x.get('type') not in ('text','tool_reference') for x in c): raise ValueError('unsupported tool_result block')
-    return '\n'.join(x['text'] if x['type']=='text' else f"<tool_reference tool=\"{x['tool_name']}\"/>" for x in c)
+    return c if isinstance(c, str) else tool_text(norm_tr_parts(c))
 
 def _norm_user(content):
     if isinstance(content, str): return mk_msg(content)
@@ -498,10 +506,14 @@ def recs2chat(
 ):
     "Canonical fastllm messages for the conversation records in `recs`"
     msgs,names = [],{}
+    def add(m):
+        m.meta = meta
+        msgs.append(m)
     for r in recs:
         r = obj2dict(r)
         if r.get('type') not in ('user','assistant'): continue
         c = r['message']['content']
+        meta = {k:v for k,v in dict(created=r.get('timestamp'), uid=r.get('uuid')).items() if v} or None
         if isinstance(c, str) and r['type']=='assistant': c = [dict(type='text', text=c)]
         if r['type']=='assistant':
             parts = []
@@ -511,13 +523,14 @@ def recs2chat(
                 elif b['type']=='tool_use':
                     names[b['id']] = b['name']
                     parts.append(ToolUse(id=b['id'], name=b['name'], arguments=b.get('input', {})))
+                elif b['type']=='fallback': continue  # mid-response model-switch bookkeeping, no content
                 else: raise ValueError(f"unsupported assistant block: {b['type']}")
-            msgs.append(Msg(role='assistant', content=parts))
+            add(Msg(role='assistant', content=parts))
         elif rec_role(r)=='tool':
             if not all(b.get('type')=='tool_result' for b in c): raise ValueError('record mixes tool_result with other blocks')
-            msgs.append(Msg(role='tool', content=[ToolResult(id=b['tool_use_id'], name=names.get(b['tool_use_id']),
+            add(Msg(role='tool', content=[ToolResult(id=b['tool_use_id'], name=names.get(b['tool_use_id']),
                 text=_tr_txt(b)) for b in c]))
-        else: msgs.append(_norm_user(c))
+        else: add(_norm_user(c))
     return msgs
 
 # %% ../nbs/03_ant.ipynb #abc4a08a
