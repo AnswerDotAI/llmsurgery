@@ -24,6 +24,9 @@ dev = ['exhash', 'openai-codex', 'claude-agent-sdk', 'json5', 'tiktoken']
 Repository = "https://github.com/AnswerDotAI/llmsurgery"
 Documentation = "https://AnswerDotAI.github.io/llmsurgery/"
 
+[project.scripts]
+sess2nb = "llmsurgery.sess:sess2nb"
+
 [project.entry-points.nbdev]
 llmsurgery = "llmsurgery._modidx:d"
 

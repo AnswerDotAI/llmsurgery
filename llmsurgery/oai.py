@@ -31,7 +31,7 @@ __all__ = ['CODEX_HOME', 'cur_thread', 'rollout_file', 'load_recs', 'load_rollou
            'items2dlg', 'thread2dlg', 'resolve_thread', 'prepare_compaction', 'append_compaction', 'compact_session']
 
 # %% ../nbs/04_oai.ipynb #d29693fa
-import base64, json, os, re, shutil, uuid
+import json, os, re, shutil, uuid
 from pathlib import Path
 from datetime import datetime, timezone
 from openai_codex import AsyncCodex, CodexConfig
@@ -39,10 +39,11 @@ from openai_codex.api import AsyncThread
 from openai_codex.generated.v2_all import ThreadInjectItemsResponse
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
-from aidialog.msg_parts import Msg, Part, PartType, hist2fmt, data_url
+from aidialog.msg_parts import Msg, Part, PartType
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
+from .utils import uniq_path
 import json5
 
 # %% ../nbs/04_oai.ipynb #fd091c3b
@@ -54,11 +55,11 @@ def cur_thread():
 
 # %% ../nbs/04_oai.ipynb #6030ebfe
 def rollout_file(
-    thread_id, # Thread UUID
+    thread_id, # Thread UUID or unique id prefix
     codex_home=CODEX_HOME, # Codex home containing sessions
 ):
     "The persisted rollout for `thread_id`, if it exists"
-    return first((Path(codex_home)/'sessions').rglob(f'*{thread_id}.jsonl'))
+    return uniq_path((Path(codex_home)/'sessions').rglob(f'*{thread_id}*.jsonl'), thread_id)
 
 # %% ../nbs/04_oai.ipynb #e83e0de0
 def load_recs(path):
@@ -141,8 +142,7 @@ _re_exec = re.compile(r'^\s*const\s+(\w+)\s*=\s*await\s+tools\.([A-Za-z_]\w*)\((
 _re_code_template = re.compile(r'^\{\s*code\s*:\s*(String\.raw)?`(.*)`\s*\}$', re.S)
 _MCP_TAILS = {  # display-only result forwarding, per codex version, with `r` for the var and whitespace stripped
     'for(constcof(r.content||[]))c.type==="image"?image(c):c.text&&text(c.text);',
-    'for(constcof(r.content||[]))c.type==="text"?text(c.text):c.type==="image"?image(c):null;',
-}
+    'for(constcof(r.content||[]))c.type==="text"?text(c.text):c.type==="image"?image(c):null;'}
 
 def _exec_args(raw):
     "Arguments from the JSON or template-literal forms Codex currently emits"

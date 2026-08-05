@@ -159,4 +159,12 @@ d = { 'settings': { 'branch': 'main',
                                 'llmsurgery.oai.thread_id': ('oai.html#thread_id', 'llmsurgery/oai.py'),
                                 'llmsurgery.oai.tool_turn': ('oai.html#tool_turn', 'llmsurgery/oai.py'),
                                 'llmsurgery.oai.trunc_tools': ('oai.html#trunc_tools', 'llmsurgery/oai.py')},
-            'llmsurgery.skill': {}}}
+            'llmsurgery.sess': { 'llmsurgery.sess._injected': ('sess.html#_injected', 'llmsurgery/sess.py'),
+                                 'llmsurgery.sess._msg_txt': ('sess.html#_msg_txt', 'llmsurgery/sess.py'),
+                                 'llmsurgery.sess._no_tools': ('sess.html#_no_tools', 'llmsurgery/sess.py'),
+                                 'llmsurgery.sess.find_sess': ('sess.html#find_sess', 'llmsurgery/sess.py'),
+                                 'llmsurgery.sess.sess2nb': ('sess.html#sess2nb', 'llmsurgery/sess.py'),
+                                 'llmsurgery.sess.sess_chat': ('sess.html#sess_chat', 'llmsurgery/sess.py'),
+                                 'llmsurgery.sess.sess_dlg': ('sess.html#sess_dlg', 'llmsurgery/sess.py')},
+            'llmsurgery.skill': {},
+            'llmsurgery.utils': {}}}

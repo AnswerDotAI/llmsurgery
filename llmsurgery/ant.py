@@ -41,10 +41,11 @@ from fastcore.utils import *
 from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs
 from fastllm.chat import mk_msg
-from aidialog.msg_parts import Msg, Part, PartType, hist2fmt, data_url
+from aidialog.msg_parts import Msg, Part, PartType
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
+from .utils import uniq_path
 
 # %% ../nbs/03_ant.ipynb #66bb9972
 SESSIONS = Path.home()/'.claude'/'projects'
@@ -65,14 +66,15 @@ def cur_sess(
 
 # %% ../nbs/03_ant.ipynb #d031edb9
 def sess_file(
-    sid=None, # Session id; `cur_sess(cwd)` if None
+    sid=None, # Session id or unique id prefix; `cur_sess(cwd)` if None
     cwd=None, # Project directory; the current directory, then all projects, if None
 ):
     "Path to the transcript of session `sid` for the project at `cwd`"
     sid = sid or cur_sess(cwd)
     p = sess_dir(cwd)/f'{sid}.jsonl'
-    if cwd is not None or p.exists(): return p
-    return first(SESSIONS.glob(f'*/{sid}.jsonl')) or p
+    if p.exists(): return p
+    root,pat = (sess_dir(cwd),f'{sid}*.jsonl') if cwd is not None else (SESSIONS,f'*/{sid}*.jsonl')
+    return uniq_path(root.glob(pat), sid) or p
 
 # %% ../nbs/03_ant.ipynb #2df63fe4
 def load_recs(path):
