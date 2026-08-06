@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.12
+
+### New Features
+
+- Emit plain prompt content in dlg2msgs/dlg2items, add toolUseResult and entrypoint fields to `mk_rec` ([#28](https://github.com/AnswerDotAI/llmsurgery/issues/28))
+
+
 ## 0.0.11
 
 ### New Features
