@@ -34,9 +34,11 @@ __all__ = ['CODEX_HOME', 'cur_thread', 'rollout_file', 'load_recs', 'load_rollou
 import json, os, re, shutil, uuid
 from pathlib import Path
 from datetime import datetime, timezone
-from openai_codex import AsyncCodex, CodexConfig
-from openai_codex.api import AsyncThread
-from openai_codex.generated.v2_all import ThreadInjectItemsResponse
+try:
+    from openai_codex import AsyncCodex, CodexConfig
+    from openai_codex.api import AsyncThread
+    from openai_codex.generated.v2_all import ThreadInjectItemsResponse
+except ImportError: AsyncCodex=CodexConfig=AsyncThread=ThreadInjectItemsResponse=None
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
 from aidialog.msg_parts import Msg, Part, Text, InputImage, ToolUse, ToolResult
@@ -44,7 +46,8 @@ from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
 from .utils import uniq_path
-import json5
+try: import json5
+except ImportError: json5 = None
 
 # %% ../nbs/04_oai.ipynb #fd091c3b
 CODEX_HOME = Path.home()/'.codex'
