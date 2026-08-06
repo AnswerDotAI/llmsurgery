@@ -8,4 +8,4 @@ Modules:
 - `llmsurgery.sess`: Find and read a session from either host
 - `llmsurgery.skill`: Read and work with Claude Code and Codex session transcripts."""
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"
