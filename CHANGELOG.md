@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.11
+
+### New Features
+
+- Make `openai_codex` and json5 imports optional in oai module so it degrades gracefully when those packages are not installed ([#27](https://github.com/AnswerDotAI/llmsurgery/issues/27))
+
+
 ## 0.0.10
 
 ### New Features
