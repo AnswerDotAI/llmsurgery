@@ -117,7 +117,7 @@ def sess_id(recs):
     return first(r.get('sessionId') for r in recs if r.get('sessionId'))
 
 # %% ../nbs/03_ant.ipynb #5850201a
-CC_VERSION = '2.1.206'
+CC_VERSION = '2.1.223'
 
 def canon(o):
     "Canonical compact JSON for `o`, key-sorted, for stable hashing"
@@ -152,7 +152,10 @@ def mk_rec(
         if role=='user' and content and all(isinstance(b, dict) and b.get('type')=='text' for b in content): content = ''.join(b['text'] for b in content)
     msg = dict(type='message', role=role, content=content)
     r = dict(type=role, uuid=uid, parentUuid=None, sessionId=None, timestamp=ts or _now(), cwd=str(Path(cwd).expanduser().resolve()),
-        version=CC_VERSION, gitBranch='HEAD', isSidechain=False, userType='external', permissionMode='default', message=msg)
+        version=CC_VERSION, gitBranch='HEAD', isSidechain=False, userType='external', entrypoint='cli', session_id=None, message=msg)
+    if role=='user' and isinstance(content, list) and (trs := [b for b in content if isinstance(b, dict) and b.get('type')=='tool_result']):
+        c = trs[-1]['content']
+        r['toolUseResult'] = c if isinstance(c, list) else [dict(type='text', text=c)]
     if role=='assistant':
         tu = isinstance(content, list) and any(isinstance(b, dict) and b.get('type')=='tool_use' for b in content)
         r['requestId'] = 'req_'+stable_uuid(f'{uid}:req').replace('-', '')[:24]
@@ -453,8 +456,8 @@ def dlg2msgs(
     dlg, # A `Dialog`, ending with a prompt
     aim_info=None, # Model capability dict for media handling; images enabled if None
 ):
-    "Anthropic-style messages for `dlg`, with each reply's tool calls recovered as real blocks"
-    return denorm_msgs(dlg2chat(dlg, aim_info))
+    "Anthropic-style messages for `dlg`: each reply's tool calls recovered as real blocks, prompts as bare content (no serving envelope)"
+    return denorm_msgs(dlg2chat(dlg, aim_info, plain=True))
 
 def dlg2sess(
     dlg, # The dialog to convert

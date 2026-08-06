@@ -397,7 +397,7 @@ def dlg2items(
     aim_info=None, # Model capability dict for media handling
 ):
     "Responses API items for `dlg`, including native custom `exec` calls"
-    items = _customize_items(denorm_msgs(dlg2chat(dlg,aim_info)))
+    items = _customize_items(denorm_msgs(dlg2chat(dlg,aim_info,plain=True)))
     raws,t = {},-1
     for m in dlg.messages:
         if m.msg_type==sprompt: t += 1
