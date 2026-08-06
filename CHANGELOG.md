@@ -2,6 +2,16 @@
 
 <!-- do not remove -->
 
+## 0.0.10
+
+### New Features
+
+- Add session mirror module for ipynb transcript indexing, plus per-message provenance meta and dedup/fallback record handling ([#26](https://github.com/AnswerDotAI/llmsurgery/issues/26))
+- Migrate to aidialog typed message parts (Text/Thinking/ToolUse/ToolResult) replacing Part/PartType ([#25](https://github.com/AnswerDotAI/llmsurgery/issues/25))
+- Add llmsurgery.sess: cross-host session lookup by id prefix and dialog reading, with sess2nb CLI ([#24](https://github.com/AnswerDotAI/llmsurgery/issues/24))
+- Guard session chains against uuid cycles/duplicates, accept bare `mcp__` tool names in dialogs, and drop dlg2thread ([#23](https://github.com/AnswerDotAI/llmsurgery/issues/23))
+
+
 ## 0.0.9
 
 ### New Features
