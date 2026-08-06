@@ -35,8 +35,9 @@ __all__ = ['SESSIONS', 'CC_VERSION', 'sess_dir', 'cur_sess', 'sess_file', 'load_
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import asyncio, base64, json, os, re, uuid
 from dataclasses import dataclass
-from claude_agent_sdk import (query, tool, create_sdk_mcp_server, ClaudeAgentOptions,
+try: from claude_agent_sdk import (query, tool, create_sdk_mcp_server, ClaudeAgentOptions,
     HookMatcher, AssistantMessage, TextBlock, StreamEvent, ResultMessage)
+except ImportError: query=tool=create_sdk_mcp_server=ClaudeAgentOptions=HookMatcher=AssistantMessage=TextBlock=StreamEvent=ResultMessage=None
 from datetime import datetime, timezone
 from fastcore.utils import *
 from fastcore.meta import delegates
