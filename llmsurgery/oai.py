@@ -518,11 +518,12 @@ def _split_synthetic(items):
     return L(items),''
 
 # %% ../nbs/04_oai.ipynb #27e47c0d
-def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
+def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None, strip=None):
     "Prepare an incremental synthetic compaction without writing it"
     tid,path = resolve_thread(ref, codex_home)
     recs = load_recs(path)
     prior,new = split_compaction(recs)
+    if strip: new = strip(new)
     keep,prior_body = _split_synthetic(prior)
     msgs = items2chat(new)
     if not msgs: raise ValueError(f'No new items to compact in {tid}')
@@ -545,8 +546,8 @@ def append_compaction(compaction):
     with Path(compaction.path).open('a') as f: f.write(json.dumps(obj2dict(compaction.rec))+'\n')
     return compaction.path
 
-def compact_session(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
+def compact_session(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None, strip=None):
     "Generate and append a synthetic thread compaction"
-    compaction = prepare_compaction(ref, codex_home, policy, enc)
+    compaction = prepare_compaction(ref, codex_home, policy, enc, strip)
     append_compaction(compaction)
     return compaction

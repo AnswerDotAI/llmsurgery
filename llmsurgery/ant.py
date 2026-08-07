@@ -170,6 +170,7 @@ def _chain(recs, sid, prev, ts, used=()):
     "Chain `recs` for session `sid` after uuid `prev`, refusing duplicate uuids (a cycle on disk otherwise)"
     seen = set(used)
     for r in recs:
+        if 'uuid' not in r: continue   # bookkeeping records (last-prompt, mode, ...) ride along unchained
         if (u := r['uuid']) in seen: raise ValueError(f'duplicate record uuid {u}')
         seen.add(u)
         r['sessionId'],r['parentUuid'],prev = sid,prev,u
