@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Find and read a session from either host">
+
+<title>sess – llmsurgery</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-2b6a17fde00b5ccb222bcc6fbf188e31.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="sess – llmsurgery">
+<meta property="og:description" content="Find and read a session from either host">
+<meta property="og:site_name" content="llmsurgery">
+<meta name="twitter:title" content="sess – llmsurgery">
+<meta name="twitter:description" content="Find and read a session from either host">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">llmsurgery</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-end">
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./sess.html">sess</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">llmsurgery</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./compact.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">compact</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ant.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ant</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./oai.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">oai</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sess.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">sess</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">mirror</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#finding-a-session" id="toc-finding-a-session" class="nav-link active" data-scroll-target="#finding-a-session">Finding a session</a>
+  <ul class="collapse">
+  <li><a href="#find_sess" id="toc-find_sess" class="nav-link" data-scroll-target="#find_sess">find_sess</a></li>
+  <li><a href="#recent_sess" id="toc-recent_sess" class="nav-link" data-scroll-target="#recent_sess">recent_sess</a></li>
+  </ul></li>
+  <li><a href="#reading-a-session" id="toc-reading-a-session" class="nav-link" data-scroll-target="#reading-a-session">Reading a session</a>
+  <ul class="collapse">
+  <li><a href="#sess_chat" id="toc-sess_chat" class="nav-link" data-scroll-target="#sess_chat">sess_chat</a></li>
+  <li><a href="#sess_dlg" id="toc-sess_dlg" class="nav-link" data-scroll-target="#sess_dlg">sess_dlg</a></li>
+  <li><a href="#path_dlg" id="toc-path_dlg" class="nav-link" data-scroll-target="#path_dlg">path_dlg</a></li>
+  </ul></li>
+  <li><a href="#the-command-line" id="toc-the-command-line" class="nav-link" data-scroll-target="#the-command-line">The command line</a>
+  <ul class="collapse">
+  <li><a href="#sess2nb" id="toc-sess2nb" class="nav-link" data-scroll-target="#sess2nb">sess2nb</a></li>
+  </ul></li>
+  <li><a href="#cleanup" id="toc-cleanup" class="nav-link" data-scroll-target="#cleanup">Cleanup</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/AnswerDotAI/llmsurgery/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="sess.html.md"><i class="bi bi-file-code"></i>Markdown</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">sess</h1>
+</div>
+
+<div>
+  <div class="description">
+    Find and read a session from either host
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<div id="f48ea3b4" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fastcore.test <span class="im">import</span> <span class="op">*</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> importlib.resources <span class="im">import</span> files</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> aidialog.dialog <span class="im">import</span> Dialog</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> aidialog.dlgskill <span class="im">import</span> summary_dlg</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> aidialog.ipynb <span class="im">import</span> read_ipynb</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json, shutil, tempfile</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Claude Code sessions and Codex threads are stored differently and read by different modules, but a person reaching for one has only an id and a question. <a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#find_sess"><code>find_sess</code></a> takes that id, from either host, and says which host owns it and where the transcript is; <a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#sess_dlg"><code>sess_dlg</code></a> reads it into a dialog for the aidialog tools. Ids may be given as any unique prefix.</p>
+<p>Where <code>ant.sess2dlg</code> and <code>oai.thread2dlg</code> are faithful conversions, <a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#sess_dlg"><code>sess_dlg</code></a> is a reading view: it drops the host’s bookkeeping and the harness’s injected turns, and it reaches back through compactions by default, so the dialog holds the conversation rather than the machinery around it. The <a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#sess2nb"><code>sess2nb</code></a> command line writes that view to an ipynb.</p>
+<section id="finding-a-session" class="level2">
+<h2 class="anchored" data-anchor-id="finding-a-session">Finding a session</h2>
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/sess.py#L30" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="find_sess" class="level3">
+<h3 class="anchored" data-anchor-id="find_sess">find_sess</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> find_sess(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    ref:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Session id or unique id prefix; the current session if None</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    cwd:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Project directory, for Claude sessions</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    codex_home:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Codex home; `oai.CODEX_HOME` if None</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The host owning session <code>ref</code> and its transcript path: <code>('ant'|'oai', path)</code></em></p>
+<p>The fixtures the <code>ant</code> and <code>oai</code> notebooks use are ordinary transcripts, so putting one where each host keeps its sessions is enough to find it. A Claude transcript is named by its session id, and eight characters of that id are plenty:</p>
+<div id="79d34325" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>proj <span class="op">=</span> Path(tempfile.mkdtemp())</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>sd <span class="op">=</span> ant.sess_dir(proj)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>sd.mkdir(parents<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>shutil.copy(Path(files(<span class="st">'llmsurgery'</span>)<span class="op">/</span><span class="st">'data'</span><span class="op">/</span><span class="st">'ant'</span><span class="op">/</span><span class="st">'source.jsonl'</span>), sd<span class="op">/</span><span class="st">'ab12cd34-0000-4000-8000-000000000000.jsonl'</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>find_sess(<span class="st">'ab12cd34'</span>, proj)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A Codex rollout is found the same way, from a thread id embedded in a longer filename, so <a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#find_sess"><code>find_sess</code></a> also reports which host owns the id it was given:</p>
+<div id="38f08711" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>home <span class="op">=</span> Path(tempfile.mkdtemp())</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>ses <span class="op">=</span> home<span class="op">/</span><span class="st">'sessions'</span><span class="op">/</span><span class="st">'2026'</span><span class="op">/</span><span class="st">'01'</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>ses.mkdir(parents<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>shutil.copy(Path(files(<span class="st">'llmsurgery'</span>)<span class="op">/</span><span class="st">'data'</span><span class="op">/</span><span class="st">'oai'</span><span class="op">/</span><span class="st">'source.jsonl'</span>), ses<span class="op">/</span><span class="st">'rollout-2026-01-24T02-44-30-ef56ab78.jsonl'</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>find_sess(<span class="st">'ef56ab78'</span>, codex_home<span class="op">=</span>home)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#recent_sess"><code>recent_sess</code></a> answers “the session I just finished here” without needing any id: the newest transcript for a directory on either host – the project’s transcript folder on the Claude side, <a href="https://AnswerDotAI.github.io/llmsurgery/oai.html#project_thread"><code>project_thread</code></a> on the Codex side – whichever was written to last:</p>
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/sess.py#L44" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="recent_sess" class="level3">
+<h3 class="anchored" data-anchor-id="recent_sess">recent_sess</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> recent_sess(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    cwd:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Project directory; the current directory if None</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    codex_home:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Codex home; `oai.CODEX_HOME` if None</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The host with the newest transcript for <code>cwd</code>, and its path: <code>('ant'|'oai', path)</code></em></p>
+<div id="e1ff2dc0" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rp <span class="op">=</span> ses<span class="op">/</span><span class="st">'rollout-2026-01-25T09-00-00-aabbccdd.jsonl'</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>rp.write_text(json.dumps(<span class="bu">dict</span>(<span class="bu">type</span><span class="op">=</span><span class="st">'session_meta'</span>,payload<span class="op">=</span><span class="bu">dict</span>(<span class="bu">id</span><span class="op">=</span><span class="st">'aabbccdd'</span>,cwd<span class="op">=</span><span class="bu">str</span>(proj))))<span class="op">+</span><span class="st">'</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>ap <span class="op">=</span> sd<span class="op">/</span><span class="st">'ab12cd34-0000-4000-8000-000000000000.jsonl'</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>mt <span class="op">=</span> ap.stat().st_mtime<span class="op">+</span><span class="dv">1</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>os.utime(rp,(mt,mt))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>test_eq(recent_sess(proj,home), (<span class="st">'oai'</span>,rp))</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>os.utime(ap,(mt<span class="op">+</span><span class="dv">1</span>,mt<span class="op">+</span><span class="dv">1</span>))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>test_eq(recent_sess(proj,home), (<span class="st">'ant'</span>,ap))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>recent_sess(proj,home)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="reading-a-session" class="level2">
+<h2 class="anchored" data-anchor-id="reading-a-session">Reading a session</h2>
+<p>Both hosts record a transcript in append order, so reading the whole history needs no chain walking: for Claude, <code>ant.conv_recs</code> keeps the conversation records in the order they happened, and for Codex, <code>oai.response_items</code> returns every recorded item, superseded history included. <code>since_compact</code> swaps each for its narrower counterpart, <code>ant.sess_thread</code> and <code>oai.active_items</code>, giving only what the model would see now.</p>
+<p>Filtering is what makes this a reading view rather than a transcript. Compaction summaries go, because with the full history present they restate what is already there. Turns the harness injected go too: a skill body arrives as a user turn indistinguishable from a typed one except by its opening line. What remains is what a person said and what the assistant said back.</p>
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/sess.py#L79" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="sess_chat" class="level3">
+<h3 class="anchored" data-anchor-id="sess_chat">sess_chat</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sess_chat(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    host, <span class="co"># `'ant'` for a Claude session, `'oai'` for a Codex thread</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    path, <span class="co"># The transcript path, e.g. from `find_sess`</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    since_compact:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Only the conversation since the last compaction?</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Canonical messages for the conversation recorded in <code>path</code>, oldest first</em></p>
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/sess.py#L116" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="sess_dlg" class="level3">
+<h3 class="anchored" data-anchor-id="sess_dlg">sess_dlg</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sess_dlg(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    ref:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Session id or unique id prefix; the current session if None</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    cwd:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Project directory, for Claude sessions</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    codex_home:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Codex home; `oai.CODEX_HOME` if None</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    name:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Dialog name; the transcript's id if None</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    mx:<span class="bu">int</span><span class="op">=</span><span class="dv">10</span>, <span class="co"># Maximum characters per rendered tool input/output string; None disables truncation</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    since_compact:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Only the conversation since the last compaction?</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    strip_tools:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Drop tool calls and their results entirely?</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The conversation of a Claude session or Codex thread as a dialog, ready to read or save</em></p>
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/sess.py#L99" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="path_dlg" class="level3">
+<h3 class="anchored" data-anchor-id="path_dlg">path_dlg</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> path_dlg(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    host, <span class="co"># `'ant'` for a Claude session, `'oai'` for a Codex thread</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    path, <span class="co"># The transcript path, e.g. from `find_sess`</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    name:NoneType<span class="op">=</span><span class="va">None</span>, <span class="co"># Dialog name; the transcript's stem if None</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    mx:<span class="bu">int</span><span class="op">=</span><span class="dv">10</span>, <span class="co"># Maximum characters per rendered tool input/output string; None disables truncation</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    since_compact:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Only the conversation since the last compaction?</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    strip_tools:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Drop tool calls and their results entirely?</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The conversation of the transcript at <code>path</code> as a dialog, its nb meta recording source and time span</em></p>
+<div id="040f686f" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>sess_dlg(<span class="st">'ab12cd34'</span>, proj).summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The dialog is self-describing: nb-level meta records which transcript it came from and the conversation’s true time span (first and last record timestamps), and each message’s cell meta carries its source record’s <code>created</code> time and <code>uid</code>. File times can lie – opening an old session bumps its mtime – so provenance lives in the data:</p>
+<div id="101e73d0" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>md <span class="op">=</span> sess_dlg(<span class="st">'ab12cd34'</span>, proj)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>lm <span class="op">=</span> md.meta[<span class="st">'llmsurgery'</span>]</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>test_eq(lm[<span class="st">'host'</span>], <span class="st">'ant'</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> lm[<span class="st">'source'</span>].endswith(<span class="st">'.jsonl'</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> lm[<span class="st">'created'</span>] <span class="op">&lt;=</span> lm[<span class="st">'last'</span>]</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">all</span>(m.meta[<span class="st">'created'</span>] <span class="kw">and</span> m.meta[<span class="st">'uid'</span>] <span class="cf">for</span> m <span class="kw">in</span> md.messages)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>lm</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Claude transcripts can contain the same record twice (chain restarts replay records into the append-order file). A replayed record is the same message, so the reading view keeps the first occurrence – duplicating every line of a transcript changes nothing:</p>
+<div id="f5fa6d80" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>ap <span class="op">=</span> sd<span class="op">/</span><span class="st">'ab12cd34-0000-4000-8000-000000000000.jsonl'</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>lines <span class="op">=</span> ap.read_text().splitlines()</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>ap.write_text(<span class="st">'</span><span class="ch">\n</span><span class="st">'</span>.join(lines<span class="op">+</span>lines)<span class="op">+</span><span class="st">'</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>d2 <span class="op">=</span> sess_dlg(<span class="st">'ab12cd34'</span>, proj)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>test_eq([m.<span class="bu">id</span> <span class="cf">for</span> m <span class="kw">in</span> d2.messages], [m.<span class="bu">id</span> <span class="cf">for</span> m <span class="kw">in</span> md.messages])</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>test_eq([m.content <span class="cf">for</span> m <span class="kw">in</span> d2.messages], [m.content <span class="cf">for</span> m <span class="kw">in</span> md.messages])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>strip_tools</code> leaves only what was said, which is the form to read when the question is what was decided rather than what was run:</p>
+<div id="77839893" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>bare <span class="op">=</span> sess_dlg(<span class="st">'ab12cd34'</span>, proj, strip_tools<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="kw">not</span> <span class="bu">any</span>(<span class="st">'{.tool}'</span> <span class="kw">in</span> (m.ai_res <span class="kw">or</span> <span class="st">''</span>) <span class="cf">for</span> m <span class="kw">in</span> bare.messages)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>bare.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="the-command-line" class="level2">
+<h2 class="anchored" data-anchor-id="the-command-line">The command line</h2>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/sess.html#sess2nb"><code>sess2nb</code></a> writes that dialog to an ipynb, so a session becomes a notebook to read, search, or paste from. It returns the path when called from Python and prints it when run as a command. <code>-r</code> converts the newest session for the current directory, from either host, so no id is needed for the session just finished.</p>
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/sess.py#L131" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="sess2nb" class="level3">
+<h3 class="anchored" data-anchor-id="sess2nb">sess2nb</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sess2nb(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    ref:<span class="bu">str</span><span class="op">=</span><span class="va">None</span>, <span class="co"># Session id or unique id prefix</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    Out:<span class="bu">str</span><span class="op">=</span><span class="va">None</span>, <span class="co"># Output path, `.ipynb` added if missing; `&lt;id&gt;.ipynb` in the current directory if None</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    mx:<span class="bu">int</span><span class="op">=</span><span class="dv">10</span>, <span class="co"># Maximum characters per rendered tool input/output string</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    Since_compact:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Only the conversation since the last compaction?</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    strip_Tools:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Drop tool calls and their results entirely?</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    Recent:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, <span class="co"># Convert the newest session for the current directory instead?</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Write a Claude session or Codex thread to an ipynb dialog</em></p>
+<div id="09c556f4" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> tempfile.TemporaryDirectory() <span class="im">as</span> td:</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> sess2nb(<span class="st">'ab12cd34'</span>, <span class="ss">f'</span><span class="sc">{</span>td<span class="sc">}</span><span class="ss">/sess'</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    saved <span class="op">=</span> read_ipynb(out)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">len</span>(saved.messages), <span class="bu">len</span>(sess_dlg(<span class="st">'ab12cd34'</span>, proj).messages))</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>test_eq(out.name, <span class="st">'sess.ipynb'</span>)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>out.name</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>With <code>-r</code> (<code>Recent</code>), no ref is given: the newest transcript for the current directory is chosen, here the Claude fixture made newest above. A ref and <code>-r</code> together, or neither, is an error:</p>
+<div id="eb3cc694" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>old <span class="op">=</span> Path.cwd()</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>os.chdir(proj)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> tempfile.TemporaryDirectory() <span class="im">as</span> td: n <span class="op">=</span> <span class="bu">len</span>(read_ipynb(sess2nb(Recent<span class="op">=</span><span class="va">True</span>, Out<span class="op">=</span><span class="ss">f'</span><span class="sc">{</span>td<span class="sc">}</span><span class="ss">/r.ipynb'</span>)).messages)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>os.chdir(old)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>test_eq(n, <span class="bu">len</span>(sess_dlg(<span class="st">'ab12cd34'</span>, proj).messages))</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> expect_fail(contains<span class="op">=</span><span class="st">'exactly one'</span>): sess2nb()</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> expect_fail(contains<span class="op">=</span><span class="st">'exactly one'</span>): sess2nb(<span class="st">'ab12cd34'</span>, Recent<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>n</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="cleanup" class="level2">
+<h2 class="anchored" data-anchor-id="cleanup">Cleanup</h2>
+<p>The Claude fixture has to sit in <code>~/.claude/projects</code> to be findable, so remove it again along with both scratch homes.</p>
+<div id="213d63b3" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>shutil.rmtree(sd)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>shutil.rmtree(proj)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>shutil.rmtree(home)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/AnswerDotAI\.github\.io\/llmsurgery");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/AnswerDotAI/llmsurgery/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
