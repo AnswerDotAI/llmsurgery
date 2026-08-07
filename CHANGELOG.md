@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.0.13
+
+### New Features
+
+- ant: chain around uuid-less bookkeeping records; oai: add optional strip callable to `prepare_compaction`/`compact_session` ([#30](https://github.com/AnswerDotAI/llmsurgery/issues/30))
+- Add `recent_sess` and sess2nb -r to convert the newest session for the current directory; sess2nb Out now appends .ipynb if missing ([#29](https://github.com/AnswerDotAI/llmsurgery/issues/29))
+
+
 ## 0.0.12
 
 ### New Features
