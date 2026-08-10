@@ -572,6 +572,7 @@ def resolve_session(ref=None, cwd='.'):
     "Resolve a session id or custom title to `(sid,path)`"
     cwd = Path(cwd).expanduser()
     ref = ref or cur_sess(cwd)
+    if ref is None: raise FileNotFoundError(f'No transcripts found for the project at {cwd}')
     path = sess_file(ref, cwd)
     if path.exists(): return ref,path
     path = sess_by_name(ref, cwd)
