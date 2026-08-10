@@ -34,6 +34,7 @@ where transcripts live, how to locate and search them, and which operations
 write files.
 Use `doc(llmsurgery.sess)` for finding a session on either host and reading it.
 Use `doc(llmsurgery.mirror)` for the mirror and its indexing.
+Use `doc(llmsurgery.gpt)` for ChatGPT web conversation payloads.
 
 Use `doc(aidialog.hist)` for conversions between dialogs and chat histories or
 replies. Use `doc(llmsurgery.compact)` for compact conversation documents and

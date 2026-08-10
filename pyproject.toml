@@ -18,7 +18,7 @@ classifiers = [
 dependencies = ['fastcore>=2.1.13', 'python-fastllm>=0.0.38', 'aidialog>=0.0.11']
 
 [project.optional-dependencies]
-dev = ['exhash', 'openai-codex', 'claude-agent-sdk', 'json5', 'tiktoken']
+dev = ['exhash', 'openai-codex', 'claude-agent-sdk', 'json5', 'tiktoken', 'fastcdp']
 
 [project.urls]
 Repository = "https://github.com/AnswerDotAI/llmsurgery"

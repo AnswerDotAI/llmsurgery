@@ -17,5 +17,6 @@ Dialogs are LLM conversations kept as Jupyter notebooks: notes, runnable code wi
 - `llmsurgery.ant`: Claude Code session transcripts, including reading, writing, search, curation, compaction, and dialog conversion.
 - `llmsurgery.oai`: Codex rollouts, including reading, search, compaction, and dialog conversion.
 - `llmsurgery.sess`: one entry point across both hosts, finding a session by id prefix and reading it as a dialog, plus the [`sess2nb`](https://AnswerDotAI.github.io/llmsurgery/sess.html#sess2nb) command.
+- `llmsurgery.gpt`: ChatGPT web conversations, fetched by URL through a logged-in browser tab or read from saved payloads, and their dialog conversion.
 
-`llmsurgery.skill` is the single pyskills entry point. It routes agents to `doc(llmsurgery.ant)` for Claude sessions, `doc(llmsurgery.oai)` for Codex sessions, and the compaction module when bounded rendering is needed.
+`llmsurgery.skill` is the single pyskills entry point. It routes agents to `doc(llmsurgery.ant)` for Claude sessions, `doc(llmsurgery.oai)` for Codex sessions, `doc(llmsurgery.gpt)` for ChatGPT conversations, and the compaction module when bounded rendering is needed.
