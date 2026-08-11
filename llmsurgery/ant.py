@@ -47,7 +47,7 @@ from aidialog.msg_parts import Msg, Part, Text, Thinking, ToolUse, ToolResult, t
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
-from .utils import uniq_path
+from .utils import uniq_path, MAXLEN
 
 # %% ../nbs/03_ant.ipynb #66bb9972
 SESSIONS = Path.home()/'.claude'/'projects'
@@ -311,7 +311,7 @@ def sess_search(
     pat, # Regex to find in conversation text
     sid=None, # Session id; the current session if None
     cwd=None, # Project directory; the current directory if None
-    maxlen=160, # Preview characters shown around a hit's first match
+    maxlen=MAXLEN, # Preview characters shown around a hit's first match
     recs=None, # Already-loaded records; if given, `sid` and `cwd` are ignored
 ):
     "Search conversation records: `SessHits` rows, each carrying its own record on `.rec`, with every searched record on `.recs`"

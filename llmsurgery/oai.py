@@ -45,7 +45,7 @@ from aidialog.msg_parts import Msg, Part, Text, InputImage, ToolUse, ToolResult
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
-from .utils import uniq_path
+from .utils import uniq_path, MAXLEN
 try: import json5
 except ImportError: json5 = None
 
@@ -289,7 +289,7 @@ class ItemHits(L):
 def item_search(
     pat, # Regex to find
     items, # Responses items
-    maxlen=160, # Preview characters around the match
+    maxlen=MAXLEN, # Preview characters around the match
 ):
     "Search model-visible Responses items: `ItemHits` rows, each carrying its own item on `.item`, with every searched item on `.hist`"
     items,res = conv_items(items),ItemHits()

@@ -2,7 +2,9 @@
 
 from fastcore.utils import Path
 
-__all__ = ['uniq_path']
+__all__ = ['uniq_path', 'MAXLEN']
+
+MAXLEN = 180 # Most characters shown per displayed line
 
 def uniq_path(
     paths, # Candidate paths, e.g. from a glob
