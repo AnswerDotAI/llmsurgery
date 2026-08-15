@@ -590,13 +590,14 @@ def _is_compact_wrapper(r):
 
 # %% ../nbs/03_ant.ipynb #d00d96be
 def split_compaction(recs):
-    "Return the prior compact body and records added after it"
+    "Return the prior compaction's text and records added after it"
     thread = sess_thread(recs)
-    idxs = [i for i,r in enumerate(thread) if _is_synthetic_compact(r)]
+    idxs = [i for i,r in enumerate(thread) if r.get('isCompactSummary')]
     if not idxs: return '',thread
     i,j = idxs[-1],idxs[-1]+1
     while j<len(thread) and _is_compact_wrapper(thread[j]): j += 1
-    return compact_body(rec_txt(thread[i])),thread[j:]
+    prior = compact_body(rec_txt(thread[i])) if _is_synthetic_compact(thread[i]) else rec_txt(thread[i])
+    return prior,thread[j:]
 
 # %% ../nbs/03_ant.ipynb #349542e6
 def sess_meta(recs):

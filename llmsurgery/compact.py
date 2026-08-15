@@ -121,9 +121,14 @@ def _plumbing(text):
     "Is this user text host plumbing (slash-command records, command stdout, hook output) rather than prose?"
     return bool(_re_plumbing.match(text))
 
+def _skill_text(text):
+    "Is this user text an injected skill body?"
+    return text.startswith('Base directory for this skill:')
+
+# %% ../nbs/02_compact.ipynb #8294df66
 def compact_user_part(p, max_toks, enc=None):
     "Render one user-text part, replacing injected skill contents."
-    text = '…skill text compacted: re-invoke before relying on it…' if p.text.startswith('Base directory for this skill:') else p.text
+    text = '…skill text compacted: re-invoke before relying on it…' if _skill_text(p.text) else p.text
     return compact_text(text, '§', max_toks, enc)
 
 def compact_user(m, max_toks, enc=None):
@@ -155,21 +160,26 @@ def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
     if m.role == 'tool': return compact_tool(m, result_toks, enc)
 
 # %% ../nbs/02_compact.ipynb #44c88dee
-def _substantive(m):
-    "Does the message render any content? Plumbing-only user messages do not, so they never spend `last_n` slots"
-    if m.role != 'user': return True
-    return any(isinstance(p, Text) and not _plumbing(p.text) for p in m.content)
+def _is_prompt(m):
+    "Is `m` a substantive user prompt? Plumbing and injected skill bodies are not, so they never spend `last_n` slots"
+    if m.role != 'user': return False
+    return any(isinstance(p, Text) and not _plumbing(p.text) and not _skill_text(p.text) for p in m.content)
+
+def _last_reply(msgs, s, e):
+    "Index of the last text-bearing assistant message in `msgs[s:e]`, or None"
+    return max((i for i in range(s,e) if msgs[i].role=='assistant' and any(isinstance(p, Text) and p.text for p in msgs[i].content)), default=None)
 
 def compact_chat(msgs, user_toks, asst_toks, call_toks, result_toks, enc=None, last_n=0):
     "Render canonical messages as compact user-led turns."
     policy = dict(user_toks=user_toks, asst_toks=asst_toks, call_toks=call_toks, result_toks=result_toks)
-    full_policy = {k:10**9 for k in policy}
-    subst = [i for i,m in enumerate(msgs) if _substantive(m)]
-    nfull = len(msgs) if not last_n else (subst[-last_n] if last_n <= len(subst) else 0)
+    prompts = [i for i,m in enumerate(msgs) if _is_prompt(m)]
+    win = prompts[-last_n:] if last_n else []
+    ends = win[1:]+[len(msgs)]
+    lift = set(win) | {f for s,e in zip(win,ends) if (f:=_last_reply(msgs,s,e)) is not None}
     turns = []
     for i,m in enumerate(msgs):
         if m.role == 'user' or not turns: turns.append([])
-        p = full_policy if i >= nfull else policy
+        p = dict(policy, user_toks=10**9, asst_toks=10**9) if i in lift else policy
         turns[-1].append(compact_msg(m, enc=enc, **p))
     rendered = ('\n'.join(filter(None, turn)) for turn in turns)
     return '\n\n***\n\n'.join(filter(None, rendered))
