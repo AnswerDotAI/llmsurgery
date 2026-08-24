@@ -2,6 +2,16 @@
 
 <!-- do not remove -->
 
+## 0.0.14
+
+### New Features
+
+- Move Claude Code session read/write primitives out of llmsurgery.ant into fastclaude.session ([#34](https://github.com/AnswerDotAI/llmsurgery/issues/34))
+- Add shared MAXLEN constant (180) in utils and use it as the default preview length in `sess_search` and `item_search` ([#33](https://github.com/AnswerDotAI/llmsurgery/issues/33))
+- gpt: convert ChatGPT web conversations to dialogs ([#32](https://github.com/AnswerDotAI/llmsurgery/pull/32)), thanks to [@kafkasl](https://github.com/kafkasl)
+- Raise FileNotFoundError in `resolve_session` when no transcripts exist for the project ([#31](https://github.com/AnswerDotAI/llmsurgery/issues/31))
+
+
 ## 0.0.13
 
 ### New Features
