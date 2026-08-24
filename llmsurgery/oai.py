@@ -45,7 +45,8 @@ from aidialog.msg_parts import Msg, Part, Text, InputImage, ToolUse, ToolResult
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
-from .utils import uniq_path, MAXLEN
+from .utils import MAXLEN
+from fastclaude.session import uniq_path
 try: import json5
 except ImportError: json5 = None
 
