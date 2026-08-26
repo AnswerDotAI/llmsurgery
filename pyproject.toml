@@ -27,6 +27,7 @@ Documentation = "https://AnswerDotAI.github.io/llmsurgery/"
 [project.scripts]
 sess2nb = "llmsurgery.sess:sess2nb"
 sess-index = "llmsurgery.mirror:sess_index"
+sess-compact = "llmsurgery.ant:sess_compact"
 
 [project.entry-points.nbdev]
 llmsurgery = "llmsurgery._modidx:d"

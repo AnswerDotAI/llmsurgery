@@ -24,8 +24,9 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 __all__ = ['conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist', 'prompt_hist', 'is_think_rec',
            'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name', 'fork_sess', 'dlg2msgs', 'dlg2sess',
            'ToolReference', 'recs2chat', 'sess2dlg', 'resolve_session', 'split_compaction', 'sess_meta',
-           'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session', 'run_locked_agent',
-           'tool_reply', 'hold_result', 'defer_tools', 'mk_deferred', 'no_prompt', 'QueryError', 'aquery_events']
+           'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session', 'sess_compact',
+           'run_locked_agent', 'tool_reply', 'hold_result', 'defer_tools', 'mk_deferred', 'no_prompt', 'QueryError',
+           'aquery_events']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
 import asyncio, base64, json, os, re, uuid
@@ -34,6 +35,7 @@ try: from claude_agent_sdk import (query, tool, create_sdk_mcp_server, ClaudeAge
     HookMatcher, AssistantMessage, TextBlock, StreamEvent, ResultMessage)
 except ImportError: query=tool=create_sdk_mcp_server=ClaudeAgentOptions=HookMatcher=AssistantMessage=TextBlock=StreamEvent=ResultMessage=None
 from datetime import datetime, timezone
+from fastcore.script import *
 from fastcore.utils import *
 from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs, norm_tr_parts
@@ -434,6 +436,21 @@ def compact_session(ref, cwd='.', policy=compact_policy, enc=None):
     compaction = prepare_compaction(ref, cwd, policy, enc)
     append_compaction(compaction)
     return compaction
+
+# %% ../nbs/03_ant.ipynb #436ea7b6
+@call_parse(pos=['ref'])
+def sess_compact(
+    ref:str, # Session id or unique id prefix
+    cwd:str='.', # Project directory the session belongs to
+    user_toks:int=2000, # Budget per user turn
+    asst_toks:int=150, # Budget per assistant message
+    call_toks:int=60, # Budget per tool call
+    result_toks:int=35, # Budget per tool result
+):
+    "Append a synthetic compaction to a Claude Code session, so `claude --resume` continues from it"
+    policy = dict(user_toks=user_toks, asst_toks=asst_toks, call_toks=call_toks, result_toks=result_toks)
+    c = compact_session(ref, cwd=cwd, policy=policy)
+    print(f'{c.sid}: {c.pre_toks:,} -> {c.post_toks:,} toks, appended to {c.path}')
 
 # %% ../nbs/03_ant.ipynb #8e9ed801
 async def run_locked_agent(
