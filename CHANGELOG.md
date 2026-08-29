@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.15
+
+### New Features
+
+- Rename `fork_sess` to `fork_curated`, run locked agents via fastclaude astream, and drop the deferred-tool MCP query layer ([#36](https://github.com/AnswerDotAI/llmsurgery/issues/36))
+
+
 ## 0.0.14
 
 ### New Features
