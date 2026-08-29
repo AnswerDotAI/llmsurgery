@@ -41,7 +41,7 @@ try:
 except ImportError: AsyncCodex=CodexConfig=AsyncThread=ThreadInjectItemsResponse=None
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
-from aidialog.msg_parts import Msg, Part, Text, InputImage, ToolUse, ToolResult
+from aidialog.msg_parts import Msg, Text, InputImage, ToolUse, ToolResult
 from aidialog.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
@@ -172,6 +172,8 @@ def parse_exec(src):
     if not ok: return None
     if arguments:=_exec_args(raw): return AttrDict(name='tools.'+tool, arguments=arguments)
 
+
+# %% ../nbs/04_oai.ipynb #2898e6ac
 def exec_input(name, arguments):
     "Stable `exec` JavaScript for one logical `tools.*` call"
     assert name.startswith('tools.')
@@ -226,6 +228,8 @@ async def inject_items(self:AsyncThread, items):
     return await self._codex._client.request('thread/inject_items',
         dict(threadId=self.id, items=[obj2dict(o) for o in items]), response_model=ThreadInjectItemsResponse)
 
+
+# %% ../nbs/04_oai.ipynb #d0eaf24f
 @patch
 async def create_thread(self:AsyncCodex, items, cwd=None, **kwargs):
     "Start a persisted thread whose history is pre-filled with `items`"
@@ -261,6 +265,8 @@ def item_txt(item):
     "Every readable string in a Responses item, joined"
     return '\n'.join(_item_txts(obj2dict(item), skip=('type','id','call_id','timestamp','encrypted_content','role','status','internal_chat_message_metadata_passthrough')))
 
+
+# %% ../nbs/04_oai.ipynb #0179fea4
 def item_role(item):
     "Conversation role of a Responses item"
     item = obj2dict(item)
@@ -274,6 +280,7 @@ def conv_items(items):
     kinds = {'message','function_call','function_call_output','custom_tool_call','custom_tool_call_output'}
     return L(o for o in items if o.get('type') in kinds)
 
+# %% ../nbs/04_oai.ipynb #12f8bc2d
 def _trunc_sz(s, mx):
     "Truncate `s` to `mx` characters, ending in a humanized `[size]` when it was cut"
     return truncstr(s, mx, suf=f'…[{humanize(len(s))}]')
@@ -305,6 +312,7 @@ def item_search(
     res.hist = items
     return res
 
+# %% ../nbs/04_oai.ipynb #f0054ce8
 def show_items(
     items, # Responses items
     mx=500, # Text characters per item
@@ -372,6 +380,8 @@ def trunc_tools(
         elif o['type'] in ('function_call_output','custom_tool_call_output'): o['output'] = _trunc_deep(o.get('output',''),mx)
     return L(items)
 
+
+# %% ../nbs/04_oai.ipynb #5aeb6a72
 def curate_items(
     recs, # Captured rollout records
     key='', # Salt for deterministic IDs
@@ -460,6 +470,8 @@ def items2chat(
         else: raise ValueError(f'unsupported response item: {typ}')
     return msgs
 
+
+# %% ../nbs/04_oai.ipynb #44125d1f
 def items2dlg(
     items, # Responses API items
     name='thread', # Dialog name

@@ -14,7 +14,7 @@ To find something that was said - an earlier discussion, a decision, work lost t
 
 Work at the record level for surgery, or when a record's envelope is itself the question: locate with `sess_file`, `cur_sess`, or `resolve_session`; load with `load_sess`, or `load_recs` for an arbitrary path; select the active thread with `sess_thread` and `conv_recs`; search readable text with `sess_search`, whose hits each carry their record on `.rec`; read a slice with `show_recs`. Prefer `sess_search` to grepping JSONL, since raw files contain base64 data, signatures, and envelope noise.
 
-Reading functions do not modify transcripts. `save_sess`, `append_sess`, `fork_sess`, and the compaction functions do. Read their docs and inspect the target records before calling them; `save_sess` replaces a whole session file.
+Reading functions do not modify transcripts. `save_sess`, `append_sess`, `fork_curated`, and the compaction functions do. Read their docs and inspect the target records before calling them; `save_sess` replaces a whole session file.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 
@@ -22,20 +22,15 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 
 # %% auto #0
 __all__ = ['conv_recs', 'rec_role', 'SessHits', 'sess_search', 'show_recs', 'PromptHist', 'prompt_hist', 'is_think_rec',
-           'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name', 'fork_sess', 'dlg2msgs', 'dlg2sess',
-           'ToolReference', 'recs2chat', 'sess2dlg', 'resolve_session', 'split_compaction', 'sess_meta',
-           'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session', 'run_locked_agent',
-           'tool_reply', 'hold_result', 'defer_tools', 'mk_deferred', 'no_prompt', 'QueryError', 'aquery_events']
+           'strip_think', 'trunc_tools', 'reid_recs', 'name_sess', 'sess_by_name', 'fork_curated', 'dlg2msgs',
+           'dlg2sess', 'ToolReference', 'recs2chat', 'sess2dlg', 'resolve_session', 'split_compaction', 'sess_meta',
+           'compact_records', 'prepare_compaction', 'append_compaction', 'compact_session', 'run_locked_agent']
 
 # %% ../nbs/03_ant.ipynb #09dc6bf6
-import asyncio, base64, json, os, re, uuid
+import asyncio, base64, re
 from dataclasses import dataclass
-try: from claude_agent_sdk import (query, tool, create_sdk_mcp_server, ClaudeAgentOptions,
-    HookMatcher, AssistantMessage, TextBlock, StreamEvent, ResultMessage)
-except ImportError: query=tool=create_sdk_mcp_server=ClaudeAgentOptions=HookMatcher=AssistantMessage=TextBlock=StreamEvent=ResultMessage=None
-from datetime import datetime, timezone
+from datetime import datetime
 from fastcore.utils import *
-from fastcore.meta import delegates
 from fastllm.anthropic import denorm_msgs, norm_tr_parts
 from fastllm.chat import mk_msg
 from aidialog.msg_parts import Msg, Part, Text, Thinking, ToolUse, ToolResult, tool_text
@@ -44,6 +39,7 @@ from aidialog.dialog import *
 from .compact import *
 from .utils import MAXLEN
 from fastclaude.session import *
+from fastclaude.core import astream
 
 # %% ../nbs/03_ant.ipynb #f9d47bbc
 def conv_recs(
@@ -72,6 +68,8 @@ def _preview(t, m, maxlen):
     res = ('…' if s else '')+t[s:e].replace('\n',' ')+('…' if e<len(t) else '')
     return res+f'[{humanize(len(t))}]' if s or e<len(t) else res
 
+
+# %% ../nbs/03_ant.ipynb #70515bc9
 class SessHits(L):
     "Search hits with a match-centered preview per line, each carrying its record on `.rec`"
     recs = None # Every record searched, set by `sess_search`; carried through selections
@@ -210,7 +208,7 @@ def sess_by_name(name, cwd='.'):
         if first((r.get('customTitle') for r in recs if r.get('type')=='custom-title'))==name: return f
 
 # %% ../nbs/03_ant.ipynb #6db09ecc
-def fork_sess(
+def fork_curated(
     sid=None, # Session id to fork; `cur_sess()` if None
     cwd=None, # Project directory; passed to `sess_file` via `load_sess`
     mx=None, # If given, truncate tool input/output strings to `mx` characters
@@ -443,112 +441,16 @@ async def run_locked_agent(
     model:str='sonnet', # Model alias or full id
     max_turns:int=15, # Turn budget for the child
     timeout:int=600, # Seconds before the child is cancelled and killed
+    cwd=None, # Directory the child works in; fastclaude's isolated work dir if None
 ):
-    "Run a bare headless agent locked to `allowed` commands, returning (report, message stream)"
+    "Run a bare headless agent locked to `allowed` commands, returning (report, raw events)"
     tools = sorted({m[0] for r in allowed if (m:=re.match(r'\w+', r))})
-    opts = ClaudeAgentOptions(model=model, max_turns=max_turns, system_prompt=sysp,
-        tools=tools, setting_sources=[], allowed_tools=allowed)
-    msgs = []
+    run = astream([Msg('user', [Text(prompt)])], model=model, system=sysp, cwd=cwd,
+        native_tools=tools, allowed=allowed, setting_sources=(), max_turns=max_turns)
+    evs = []
     async def _go():
-        async for m in query(prompt=prompt, options=opts): msgs.append(m)
+        async for m in run: evs.append(m)
     await asyncio.wait_for(_go(), timeout)
-    txts = [b.text for m in msgs if isinstance(m, AssistantMessage) for b in m.content if isinstance(b, TextBlock)]
-    return (txts[-1] if txts else None), msgs
+    txts = [b['text'] for e in evs if e.get('type')=='assistant' for b in e['message']['content'] if b.get('type')=='text']
+    return (txts[-1] if txts else None), evs
 
-# %% ../nbs/03_ant.ipynb #f78e2891
-def tool_reply(content, is_error=False):
-    "An MCP tool return value carrying an Anthropic `tool_result`'s `content`"
-    if isinstance(content, str): content = [dict(type='text', text=content)]
-    def _cvt(b):
-        if b.get('type')!='image': return b
-        s = b['source']
-        return dict(type='image', data=s['data'], mimeType=s['media_type'])
-    return dict(content=[_cvt(b) for b in content], isError=is_error)
-
-def _res_key(name, input): return canon([name, canon(dict(input))])
-
-def hold_result(held, name, input, content, is_error=False):
-    "Queue a result for `defer_tools` to return when Claude re-invokes `name` with `input`; returns `held`"
-    held.setdefault(_res_key(name, input), []).append(tool_reply(content, is_error))
-    return held
-
-def defer_tools(
-    name, # MCP server name to register the tools under
-    tools, # The caller's tools, as `(name, description, schema)` triples
-    held=None, # Results queued by `hold_result`; calls without one defer
-):
-    "`mcp_servers`, `allowed_tools`, and `hooks` options deferring `tools` to the caller"
-    if not tools: return {},[],{}
-    if held is None: held = {}
-    def _mk(nm, desc, schema):
-        @tool(nm, desc or '', schema)
-        async def _t(args): return held[_res_key(f'mcp__{name}__{nm}', args)].pop(0)
-        return _t
-    async def _route(inp, tool_use_id, ctx):
-        dec = 'allow' if held.get(_res_key(inp['tool_name'], inp['tool_input'])) else 'defer'
-        return dict(hookSpecificOutput=dict(hookEventName='PreToolUse', permissionDecision=dec))
-    srv = create_sdk_mcp_server(name, tools=[_mk(*t) for t in tools])
-    allowed = [f'mcp__{name}__{nm}' for nm,_,_ in tools]
-    return {name: srv}, allowed, {'PreToolUse': [HookMatcher(matcher='|'.join(allowed), hooks=[_route])]}
-
-# %% ../nbs/03_ant.ipynb #c2845e0c
-def mk_deferred(
-    tu, # The pending `tool_use` block dict
-    cwd='.', # Project directory recorded in the envelope
-    uid=None, # Record uuid; random if None
-    ts='2026-01-01T00:00:00.000Z', # Timestamp recorded in the envelope
-):
-    "A `hook_deferred_tool` attachment record marking `tu` as deferred, ready for `save_sess`"
-    return dict(type='attachment', uuid=uid or str(uuid.uuid4()), parentUuid=None, sessionId=None, isSidechain=False,
-        timestamp=ts, userType='external', cwd=str(Path(cwd).expanduser().resolve()), version=CC_VERSION, gitBranch='HEAD',
-        attachment=dict(type='hook_deferred_tool', toolUseID=tu['id'], toolName=tu['name'], toolInput=tu.get('input', {}),
-            hookName='settings', hookEvent='PreToolUse', permissionMode='default'))
-
-async def no_prompt():
-    "An empty streaming-input prompt: resume a session without adding a user turn"
-    return
-    yield
-
-# %% ../nbs/03_ant.ipynb #64ebc6b6
-class QueryError(Exception):
-    "An error `ResultMessage` from a `query` stream"
-    def __init__(self, result):
-        txt = result.result or '; '.join(result.errors or []) or result.subtype
-        m = re.search(r'\b(\d{3})\b', txt or '')
-        self.result,self.status = result,result.api_error_status or (int(m.group(1)) if m else None)
-        super().__init__(txt)
-
-# %% ../nbs/03_ant.ipynb #f82d252e
-def _reidx():
-    "Stateful rebase of per-message block indices onto one global sequence"
-    base,mx = 0,-1
-    def f(ev):
-        nonlocal base,mx
-        t = ev.get('type')
-        if t=='message_start': base,mx = base+mx+1,-1
-        elif t in ('content_block_start','content_block_delta','content_block_stop') and 'index' in ev:
-            mx = max(mx, ev['index'])
-            ev = {**ev, 'index': ev['index']+base}
-        return ev
-    return f
-
-# %% ../nbs/03_ant.ipynb #2d2d2d8a
-async def aquery_events(
-    prompt, # The new user turn: a string, or a streaming-input iterable, e.g. `no_prompt()`
-    opts, # `ClaudeAgentOptions`, with `include_partial_messages=True`
-    prefix=None, # MCP name prefix to strip from `tool_use` events, matching `defer_tools` naming
-):
-    "Anthropic stream events from a `query`, re-indexed as one global sequence; raises `QueryError` on an error result"
-    gen,f = query(prompt=prompt, options=opts),_reidx()
-    try:
-        async for msg in gen:
-            if isinstance(msg, ResultMessage) and msg.is_error: raise QueryError(msg)
-            elif isinstance(msg, StreamEvent):
-                ev = f(msg.event)
-                cb = ev.get('content_block', {})
-                if prefix and cb.get('type')=='tool_use' and cb.get('name','').startswith(prefix):
-                    ev = {**ev, 'content_block': {**cb, 'name': cb['name'][len(prefix):]}}
-                yield ev
-    finally:
-        try: await gen.aclose()
-        except Exception: pass
