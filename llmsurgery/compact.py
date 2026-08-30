@@ -108,7 +108,7 @@ def generic_call(name, args, max_toks, enc=None):
     return trunctoks_mid(f'▶ {name}({vals})', max_toks, enc)
 
 # %% ../nbs/02_compact.ipynb #cef7d16f
-call_renderers = dict(mcp__clikernel__execute=(fenced_code,'code'), py=(fenced_code,'code'), Bash=(bash_call,'command'), bash=(bash_call,'cmd'))
+call_renderers = dict(mcp__clikernel__py=(fenced_code,'code'), mcp__clikernel__execute=(fenced_code,'code'), py=(fenced_code,'code'), Bash=(bash_call,'command'), bash=(bash_call,'cmd'))
 
 def compact_call(p, max_toks, enc=None):
     "Render a tool-use part within `max_toks`, dispatching on `call_renderers`."
