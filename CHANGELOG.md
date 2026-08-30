@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.0.16
+
+### New Features
+
+- Render the renamed clikernel py tool as fenced code in compact transcripts ([#37](https://github.com/AnswerDotAI/llmsurgery/pull/37)), thanks to [@jph00](https://github.com/jph00)
+
+
 ## 0.0.15
 
 ### New Features
