@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>compact – llmsurgery</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-d63a2c9c8df14b07662b36303925c8cc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="compact – llmsurgery">
+<meta property="og:description" content="LLM Surgery">
+<meta property="og:site_name" content="llmsurgery">
+<meta name="twitter:title" content="compact – llmsurgery">
+<meta name="twitter:description" content="LLM Surgery">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">llmsurgery</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-end">
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./compact.html">compact</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">llmsurgery</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./compact.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">compact</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ant.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ant</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./oai.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">oai</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sess.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">sess</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">mirror</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#compact-dsl" id="toc-compact-dsl" class="nav-link active" data-scroll-target="#compact-dsl">Compact DSL</a>
+  <ul class="collapse">
+  <li><a href="#message-rendering" id="toc-message-rendering" class="nav-link" data-scroll-target="#message-rendering">Message rendering</a></li>
+  <li><a href="#conversation-rendering" id="toc-conversation-rendering" class="nav-link" data-scroll-target="#conversation-rendering">Conversation rendering</a></li>
+  </ul></li>
+  <li><a href="#compaction-documents" id="toc-compaction-documents" class="nav-link" data-scroll-target="#compaction-documents">Compaction documents</a></li>
+  <li><a href="#dialog-compaction" id="toc-dialog-compaction" class="nav-link" data-scroll-target="#dialog-compaction">Dialog compaction</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/AnswerDotAI/llmsurgery/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="compact.html.md"><i class="bi bi-file-code"></i>Markdown</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">compact</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<div id="3219c4e2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:27.984646+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.139609+00:00&quot;,&quot;total&quot;:1.1549671569999873}}" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fastcore.test <span class="im">import</span> <span class="op">*</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fastllm.chat <span class="im">import</span> mk_msg</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>llmsurgery.compact</code> defines a concise format for compacted LLM conversations. Long conversations need to preserve the theory, decisions, and evidence needed for useful continuation while using far fewer tokens. The format provides readable canonical rendering, bounded token budgets, tool calls and results, truncation, and repeated compaction.</p>
+<section id="compact-dsl" class="level2">
+<h2 class="anchored" data-anchor-id="compact-dsl">Compact DSL</h2>
+<p>We’ll start with the compact DSL, which takes fastllm’s canonical conversation data structures and renders them into this concise format.</p>
+<p>First we will define and inspect the sample conversation using fastllm’s canonical Msg and Part data structures as our basis.</p>
+<div id="cdfb777f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.141690+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.287592+00:00&quot;,&quot;total&quot;:0.14590859799997702}}" data-execution_count="4">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L28" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="tool_result" class="level3">
+<h3 class="anchored" data-anchor-id="tool_result">tool_result</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> tool_result(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    text, tool_name:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Create a canonical tool-result message; pass <code>tool_name</code> to pair it with its <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#tool_part"><code>tool_part</code></a> call</em></p>
+</section>
+</div>
+<div id="ea8c9f8e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.287753+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.291753+00:00&quot;,&quot;total&quot;:0.00400300899997319}}" data-execution_count="5">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L24" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="tool_part" class="level3">
+<h3 class="anchored" data-anchor-id="tool_part">tool_part</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> tool_part(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    tool_name, <span class="op">**</span>arguments</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Create a canonical tool-use part</em></p>
+</section>
+</div>
+<div id="7b7b559e" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>python_str <span class="op">=</span> <span class="st">'files = ["a.py", "b.py"]'</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>bash_str <span class="op">=</span> <span class="st">'printf "ready</span><span class="ch">\\</span><span class="st">n"</span><span class="ch">\n</span><span class="st">ls -la'</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>generic_args <span class="op">=</span> {<span class="st">'path'</span>:<span class="st">'fixture.json'</span>, <span class="st">'lines'</span>:[<span class="dv">1</span>, <span class="dv">2</span>]}</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>res_str <span class="op">=</span> <span class="st">'first line</span><span class="ch">\n\n</span><span class="st">second line</span><span class="ch">\n</span><span class="st">final line'</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>python_part <span class="op">=</span> tool_part(<span class="st">'mcp__clikernel__execute'</span>, code<span class="op">=</span>python_str)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>bash_part <span class="op">=</span> tool_part(<span class="st">'Bash'</span>, command<span class="op">=</span>bash_str)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>generic_part <span class="op">=</span> tool_part(<span class="st">'inspect'</span>, <span class="op">**</span>generic_args)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="bd21d3c8" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>turn1 <span class="op">=</span> [mk_msg(<span class="st">'List the project files, use the project skill, then run a shell check.'</span>),</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    mk_msg([<span class="st">'I will inspect the project.'</span>, python_part], role<span class="op">=</span><span class="st">'assistant'</span>),</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    tool_result(<span class="st">'files = ["a.py", "b.py"]'</span>, <span class="st">'mcp__clikernel__execute'</span>),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    mk_msg([tool_part(<span class="st">'Skill'</span>, skill<span class="op">=</span><span class="st">'project-files'</span>)], role<span class="op">=</span><span class="st">'assistant'</span>),</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    tool_result(<span class="st">'Skill loaded: project-files'</span>, <span class="st">'Skill'</span>),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    mk_msg(<span class="st">'Base directory for this skill: /skills/project-files</span><span class="ch">\n\n</span><span class="st">Inspect project files before editing.'</span>),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    mk_msg([bash_part], role<span class="op">=</span><span class="st">'assistant'</span>),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    tool_result(<span class="st">'ready'</span>, <span class="st">'Bash'</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="5858136a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>turn2 <span class="op">=</span> [mk_msg(<span class="st">'Keep the agreed names; do not rename the fixture.'</span>),  <span class="co"># chkstyle: ignore-node</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    mk_msg([<span class="st">'Understood. I will verify the final state.'</span>, generic_part], role<span class="op">=</span><span class="st">'assistant'</span>),</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    tool_result(res_str, <span class="st">'inspect'</span>),</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    mk_msg(<span class="st">'The fixture is short, readable, and ready for the renderer.'</span>, role<span class="op">=</span><span class="st">'assistant'</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Two synthetic turns joined make the mixed conversation the rest of the page compacts:</p>
+<div id="194055b1" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>conversation <span class="op">=</span> turn1 <span class="op">+</span> turn2</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">len</span>(conversation)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>12</code></pre>
+</div>
+</div>
+<div id="ae307c4e" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>turn1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>[Msg(role='user', content=[Text(raw=None, cache_control=None, text='List the project files, use the project skill, then run a shell check.', citations=None)]),
+ Msg(role='assistant', content=[Text(raw=None, cache_control=None, text='I will inspect the project.', citations=None), ToolUse(raw=None, cache_control=None, id='call_mcp__clikernel__execute', name='mcp__clikernel__execute', arguments={'code': 'files = ["a.py", "b.py"]'}, server=False, text=None)]),
+ Msg(role='tool', content=[ToolResult(raw=None, cache_control=None, id='call_mcp__clikernel__execute', name='mcp__clikernel__execute', arguments={}, server=False, text='files = ["a.py", "b.py"]')]),
+ Msg(role='assistant', content=[ToolUse(raw=None, cache_control=None, id='call_Skill', name='Skill', arguments={'skill': 'project-files'}, server=False, text=None)]),
+ Msg(role='tool', content=[ToolResult(raw=None, cache_control=None, id='call_Skill', name='Skill', arguments={}, server=False, text='Skill loaded: project-files')]),
+ Msg(role='user', content=[Text(raw=None, cache_control=None, text='Base directory for this skill: /skills/project-files\n\nInspect project files before editing.', citations=None)]),
+ Msg(role='assistant', content=[ToolUse(raw=None, cache_control=None, id='call_Bash', name='Bash', arguments={'command': 'printf "ready\\n"\nls -la'}, server=False, text=None)]),
+ Msg(role='tool', content=[ToolResult(raw=None, cache_control=None, id='call_Bash', name='Bash', arguments={}, server=False, text='ready')])]</code></pre>
+</div>
+</div>
+<div id="0a2bff47" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>turn2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>[Msg(role='user', content=[Text(raw=None, cache_control=None, text='Keep the agreed names; do not rename the fixture.', citations=None)]),
+ Msg(role='assistant', content=[Text(raw=None, cache_control=None, text='Understood. I will verify the final state.', citations=None), ToolUse(raw=None, cache_control=None, id='call_inspect', name='inspect', arguments={'path': 'fixture.json', 'lines': [1, 2]}, server=False, text=None)]),
+ Msg(role='tool', content=[ToolResult(raw=None, cache_control=None, id='call_inspect', name='inspect', arguments={}, server=False, text='first line\n\nsecond line\nfinal line')]),
+ Msg(role='assistant', content=[Text(raw=None, cache_control=None, text='The fixture is short, readable, and ready for the renderer.', citations=None)])]</code></pre>
+</div>
+</div>
+<p>We use a <em>token</em> budget (based on OpenAI’s public tokenizer, which should be at least indicative of other LLM’s too), and truncate the <em>middle</em>, since the start and end are often the interesting bits.</p>
+<div id="e8b65302" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.294778+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.298484+00:00&quot;,&quot;total&quot;:0.0037099710000063624}}" data-execution_count="7">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L46" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="len_toks" class="level3">
+<h3 class="anchored" data-anchor-id="len_toks">len_toks</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> len_toks(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    s, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Number of tokens in <code>s</code>.</em></p>
+</section>
+</div>
+<div id="2e73a94b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.298604+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.302361+00:00&quot;,&quot;total&quot;:0.0037606960000005074}}" data-execution_count="8">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L41" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="enc_toks" class="level3">
+<h3 class="anchored" data-anchor-id="enc_toks">enc_toks</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> enc_toks(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    s, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Encode <code>s</code> into tokens.</em></p>
+</section>
+</div>
+<div id="6ea764e0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.302484+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.306078+00:00&quot;,&quot;total&quot;:0.0035975300000075094}}" data-execution_count="9">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L37" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_enc" class="level3">
+<h3 class="anchored" data-anchor-id="compact_enc">compact_enc</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_enc():</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Call self as a function.</em></p>
+</section>
+</div>
+<div id="b459e422" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>enc <span class="op">=</span> compact_enc()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="26416d6e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.308124+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.312662+00:00&quot;,&quot;total&quot;:0.004540376000022661}}" data-execution_count="11">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L51" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="trunctoks_mid" class="level3">
+<h3 class="anchored" data-anchor-id="trunctoks_mid">trunctoks_mid</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> trunctoks_mid(</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    s, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span>, mark:<span class="bu">str</span><span class="op">=</span><span class="st">' … '</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Truncate the middle of <code>s</code> to at most <code>max_toks</code> tokens.</em></p>
+</section>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_text"><code>compact_text</code></a> renders ordinary user or assistant prose with a marker and a token limit. It is the simplest DSL conversion: delimit the text, then use middle truncation so both the beginning and ending remain available when the budget is exceeded.</p>
+<div id="b7affd7a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.313912+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.317730+00:00&quot;,&quot;total&quot;:0.003821248999997806}}" data-execution_count="13">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L64" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_text" class="level3">
+<h3 class="anchored" data-anchor-id="compact_text">compact_text</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_text(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    s, mark, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render delimited prose within <code>max_toks</code>.</em></p>
+</section>
+</div>
+<div id="ad51e6c5" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>text <span class="op">=</span> compact_text(<span class="st">'beginning '</span> <span class="op">+</span> <span class="st">'middle '</span> <span class="op">*</span> <span class="dv">100</span> <span class="op">+</span> <span class="st">' ending'</span>, <span class="st">'§'</span>, <span class="dv">20</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>test(text, <span class="st">'§ beginning'</span>, <span class="bu">str</span>.startswith)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>test(text, <span class="st">'ending §'</span>, <span class="bu">str</span>.endswith)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> len_toks(text) <span class="op">&lt;=</span> <span class="dv">20</span>, text</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(text)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>§ beginning middle middle middle middle middle middle middle …  middle middle middle middle middle middle  ending §</code></pre>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_result"><code>compact_result</code></a> renders tool output compactly. It replaces internal newlines with <code>¶</code>, prefixes the result with <code>&gt;</code>, and applies the same middle-truncation policy so the output remains useful within a token budget. An empty result is represented by the <code>&gt;</code> marker alone. <code>&lt;warn&gt;</code>/<code>&lt;note&gt;</code> doc-state blocks are dropped first: they re-fire mechanically after a restart, so preserved copies carry no forward information — and worse, demonstrate the very call-before-doc pattern they exist to correct. A result wrapped in <code>𝍁…𝍁</code> is unwrapped and kept whole, mirroring fastllm’s truncation contract (<code>FullResponse</code> and friends skip truncation, and the <code>𝍁</code> marker is the form that survives serialization): a tool marks its output this way exactly when it is expensive or impossible to regenerate.</p>
+<div id="30fdc465" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.321235+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.325842+00:00&quot;,&quot;total&quot;:0.004611239000013256}}" data-execution_count="15">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L71" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_result" class="level3">
+<h3 class="anchored" data-anchor-id="compact_result">compact_result</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_result(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    s, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a tool result within <code>max_toks</code>; <code>&lt;warn&gt;</code>/<code>&lt;note&gt;</code> doc-state blocks are dropped, and a <code>𝍁</code>-wrapped result is kept whole.</em></p>
+</section>
+</div>
+<div id="86463669" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> compact_result(res_str, <span class="dv">20</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>empty <span class="op">=</span> compact_result(<span class="st">''</span>, <span class="dv">20</span>)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>test_eq(result, <span class="st">'&gt; first line ¶ second line ¶ final line'</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>test_eq(empty, <span class="st">'&gt;'</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(result)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(empty)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&gt; first line ¶ second line ¶ final line
+&gt;</code></pre>
+</div>
+</div>
+<p>Warn blocks strip out, a note-only result collapses to the bare marker, and a <code>𝍁</code>-marked result is kept whole, honoring the no-truncation convention:</p>
+<div id="a7c45f23" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>warned <span class="op">=</span> compact_result(<span class="st">'&lt;warn&gt;</span><span class="ch">\n</span><span class="st">Rule violation: docs not read.</span><span class="ch">\n</span><span class="st">&lt;/warn&gt;</span><span class="ch">\n</span><span class="st">'</span> <span class="op">+</span> res_str, <span class="dv">20</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>test_eq(warned, result)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>test_eq(compact_result(<span class="st">'&lt;note&gt;</span><span class="ch">\n</span><span class="st">A doc-state nudge.</span><span class="ch">\n</span><span class="st">&lt;/note&gt;'</span>, <span class="dv">20</span>), <span class="st">'&gt;'</span>)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>full <span class="op">=</span> compact_result(<span class="st">'𝍁'</span> <span class="op">+</span> <span class="st">'keep me whole '</span> <span class="op">*</span> <span class="dv">30</span> <span class="op">+</span> <span class="st">'𝍁'</span>, <span class="dv">20</span>)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>test_eq(full, <span class="st">'&gt; '</span> <span class="op">+</span> (<span class="st">'keep me whole '</span> <span class="op">*</span> <span class="dv">30</span>).strip())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#fenced_code"><code>fenced_code</code></a> renders Python tool-call code as Markdown without allowing backticks inside the code to close the fence. It chooses a fence longer than any run of backticks in the source, then applies the shared token budget.</p>
+<div id="2355733f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.328824+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.333794+00:00&quot;,&quot;total&quot;:0.004973646999985704}}" data-execution_count="17">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L81" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="fenced_code" class="level3">
+<h3 class="anchored" data-anchor-id="fenced_code">fenced_code</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fenced_code(</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    code, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render Python in a safe Markdown fence within <code>max_toks</code>.</em></p>
+</section>
+</div>
+<div id="f76c3895" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>simple <span class="op">=</span> fenced_code(python_str, <span class="dv">40</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>with_inline_backticks <span class="op">=</span> fenced_code(<span class="st">"s = '```text```'"</span>, <span class="dv">40</span>)</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>test_eq(simple, <span class="ss">f'```python</span><span class="ch">\n</span><span class="sc">{</span>python_str<span class="sc">}</span><span class="ch">\n</span><span class="ss">```'</span>)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>test_eq(with_inline_backticks, <span class="st">"```python</span><span class="ch">\n</span><span class="st">s = '```text```'</span><span class="ch">\n</span><span class="st">```"</span>)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(simple)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>```python
+files = ["a.py", "b.py"]
+```</code></pre>
+</div>
+</div>
+<p>A body containing a fence line escalates the outer fence, and truncation respects the token cap inside the fence:</p>
+<div id="a78d3117" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>with_fence_line <span class="op">=</span> fenced_code(<span class="st">"before</span><span class="ch">\n</span><span class="st">```</span><span class="ch">\n</span><span class="st">after"</span>, <span class="dv">40</span>)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>truncated <span class="op">=</span> fenced_code(python_str <span class="op">*</span> <span class="dv">20</span>, <span class="dv">20</span>)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>test_eq(with_fence_line, <span class="st">"````python</span><span class="ch">\n</span><span class="st">before</span><span class="ch">\n</span><span class="st">```</span><span class="ch">\n</span><span class="st">after</span><span class="ch">\n</span><span class="st">````"</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>test(truncated, <span class="st">'```python</span><span class="ch">\n</span><span class="st">'</span>, <span class="bu">str</span>.startswith)</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>test(truncated, <span class="st">'</span><span class="ch">\n</span><span class="st">```'</span>, <span class="bu">str</span>.endswith)</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> len_toks(truncated) <span class="op">&lt;=</span> <span class="dv">20</span>, truncated</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(with_fence_line)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>````python
+before
+```
+after
+````</code></pre>
+</div>
+</div>
+<div id="f589aafb" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(with_fence_line)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>````python
+before
+```
+after
+````</code></pre>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#bash_call"><code>bash_call</code></a> renders a Bash tool call as a compact shell command. It uses <code>!</code> as the marker, collapses non-empty command lines with <code>¶</code>, and applies the shared token budget.</p>
+<div id="6aadfdea" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.335782+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.339775+00:00&quot;,&quot;total&quot;:0.003996897999996918}}" data-execution_count="19">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L99" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="bash_call" class="level3">
+<h3 class="anchored" data-anchor-id="bash_call">bash_call</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> bash_call(</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    command, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a Bash command within <code>max_toks</code>.</em></p>
+</section>
+</div>
+<div id="0aebdfe0" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>bash <span class="op">=</span> bash_call(bash_str, <span class="dv">30</span>)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>test_eq(bash, <span class="st">'! printf "ready</span><span class="ch">\\</span><span class="st">n" ¶ ls -la'</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(bash)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>! printf "ready\n" ¶ ls -la</code></pre>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#generic_call"><code>generic_call</code></a> renders non-Bash tool calls as <code>▶ name(args)</code>. It formats named arguments compactly, replaces embedded newlines with <code>¶</code>, and applies the shared token budget.</p>
+<div id="97d1b681" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.341454+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.345508+00:00&quot;,&quot;total&quot;:0.004058272000008856}}" data-execution_count="21">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L105" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="generic_call" class="level3">
+<h3 class="anchored" data-anchor-id="generic_call">generic_call</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generic_call(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    name, args, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a generic tool call within <code>max_toks</code>.</em></p>
+</section>
+</div>
+<div id="c154d798" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>call <span class="op">=</span> generic_call(generic_part.name, generic_part.arguments, <span class="dv">40</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>test_eq(call, <span class="st">"▶ inspect(path='fixture.json', lines=[1, 2])"</span>)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(call)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>▶ inspect(path='fixture.json', lines=[1, 2])</code></pre>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_call"><code>compact_call</code></a> dispatches each tool-use part through <code>call_renderers</code>, which maps a tool name to the renderer for its payload and the argument key holding it: clikernel and solveit’s <code>py</code> render fenced Python, Claude Code’s <code>Bash</code> and solveit’s <code>bash</code> render the <code>!</code> form. Anything unregistered falls back to <code>▶ name(args)</code>, and a host adds its own tools with one dict entry rather than a code change.</p>
+<div id="12a63720" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.347577+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.351650+00:00&quot;,&quot;total&quot;:0.004076546000021608}}" data-execution_count="23">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L113" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_call" class="level3">
+<h3 class="anchored" data-anchor-id="compact_call">compact_call</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_call(</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    p, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a tool-use part within <code>max_toks</code>, dispatching on <code>call_renderers</code>.</em></p>
+</section>
+</div>
+<div id="3538f66c" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>codex_part <span class="op">=</span> tool_part(<span class="st">'tools.mcp__clikernel__execute'</span>, code<span class="op">=</span>python_str)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>parts <span class="op">=</span> [python_part, codex_part, bash_part, generic_part]</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>rendered <span class="op">=</span> [compact_call(p, <span class="dv">40</span>) <span class="cf">for</span> p <span class="kw">in</span> parts]</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>test_eq(rendered, [simple, simple, bash, call])</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'</span><span class="ch">\n</span><span class="st">'</span>.join(rendered))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>```python
+files = ["a.py", "b.py"]
+```
+```python
+files = ["a.py", "b.py"]
+```
+! printf "ready\n" ¶ ls -la
+▶ inspect(path='fixture.json', lines=[1, 2])</code></pre>
+</div>
+</div>
+<p>Solveit runs python as <code>py</code> and shell as <code>bash</code>, with its own argument key; both render the same as their longer-named twins:</p>
+<div id="74051e73" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>test_eq(compact_call(tool_part(<span class="st">'bash'</span>, cmd<span class="op">=</span>bash_str), <span class="dv">40</span>), bash)</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>compact_call(tool_part(<span class="st">'py'</span>, code<span class="op">=</span>python_str), <span class="dv">40</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'```python\nfiles = ["a.py", "b.py"]\n```'</code></pre>
+</div>
+</div>
+<section id="message-rendering" class="level3">
+<h3 class="anchored" data-anchor-id="message-rendering">Message rendering</h3>
+<p>Two recognizers classify user text before any rendering choice: host plumbing, and injected skill bodies. Both are checked wherever user text is rendered or counted, so their definitions come first:</p>
+<p>User messages are rendered part by part with <code>§</code>. Injected skill contents are infrastructure rather than conversation-specific evidence, but experience shows a resumed model won’t re-read them unprompted, so each is replaced by a marker carrying its own instruction - and the wrapping document ends by listing the exact <code>Skill(...)</code> calls to make (below). Host plumbing parts - slash-command records, command stdout, hook and system-reminder text - are dropped entirely: they are self-obsoleting diagnostics, not conversation.</p>
+<div id="4907b969" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.355519+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.359628+00:00&quot;,&quot;total&quot;:0.004112684999995508}}" data-execution_count="26">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L136" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_user" class="level3">
+<h3 class="anchored" data-anchor-id="compact_user">compact_user</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_user(</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    m, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render the text parts of a user message, dropping plumbing parts.</em></p>
+</section>
+</div>
+<div id="a02bbb94" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.359752+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.363821+00:00&quot;,&quot;total&quot;:0.004072570000005271}}" data-execution_count="27">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L131" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_user_part" class="level3">
+<h3 class="anchored" data-anchor-id="compact_user_part">compact_user_part</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_user_part(</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>    p, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render one user-text part, replacing injected skill contents.</em></p>
+</section>
+</div>
+<div id="801989e6" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>user <span class="op">=</span> compact_user(turn1[<span class="dv">0</span>], <span class="dv">100</span>)</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>skill <span class="op">=</span> compact_user(turn1[<span class="dv">5</span>], <span class="dv">100</span>)</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>test_eq(user, <span class="st">'§ List the project files, use the project skill, then run a shell check. §'</span>)</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>test_eq(skill, <span class="st">'§ …skill text compacted: re-invoke before relying on it… §'</span>)</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>cmd <span class="op">=</span> mk_msg(<span class="st">'&lt;command-name&gt;/compact&lt;/command-name&gt;</span><span class="ch">\n</span><span class="st">&lt;command-message&gt;compact&lt;/command-message&gt;'</span>)</span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>test_eq(compact_user(cmd, <span class="dv">100</span>), <span class="st">''</span>)</span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>test_eq(compact_user(mk_msg(<span class="st">'&lt;local-command-stdout&gt;Compacted&lt;/local-command-stdout&gt;'</span>), <span class="dv">100</span>), <span class="st">''</span>)</span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(user)</span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(skill)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>§ List the project files, use the project skill, then run a shell check. §
+§ …skill text compacted: re-invoke before relying on it… §</code></pre>
+</div>
+</div>
+<p>Assistant messages may interleave prose and tool calls. Text parts use <code>»</code>, while tool-use parts are delegated to <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_call"><code>compact_call</code></a>; preserving their order keeps the response readable as a sequence.</p>
+<div id="9a5a005c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.366647+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.370553+00:00&quot;,&quot;total&quot;:0.00390982399997597}}" data-execution_count="29">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L147" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_asst" class="level3">
+<h3 class="anchored" data-anchor-id="compact_asst">compact_asst</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_asst(</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    m, text_toks, call_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render an assistant message.</em></p>
+</section>
+</div>
+<div id="968df41c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.370672+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.374698+00:00&quot;,&quot;total&quot;:0.0040313020000155575}}" data-execution_count="30">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L142" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_asst_part" class="level3">
+<h3 class="anchored" data-anchor-id="compact_asst_part">compact_asst_part</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_asst_part(</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>    p, text_toks, call_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render one assistant part.</em></p>
+</section>
+</div>
+<div id="8b98a8f7" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>assistant <span class="op">=</span> compact_asst(turn1[<span class="dv">1</span>], <span class="dv">100</span>, <span class="dv">40</span>)</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>expected <span class="op">=</span> <span class="ss">f'» I will inspect the project. »</span><span class="ch">\n</span><span class="sc">{</span>simple<span class="sc">}</span><span class="ss">'</span></span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>test_eq(assistant, expected)</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(assistant)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>» I will inspect the project. »
+```python
+files = ["a.py", "b.py"]
+```</code></pre>
+</div>
+</div>
+<p>Tool messages contain tool-result parts. The top-level dispatcher selects the renderer from the canonical message role, giving the rest of the compaction pipeline one entry point for every message.</p>
+<div id="4df00ee3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.376850+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.380910+00:00&quot;,&quot;total&quot;:0.004063793999989684}}" data-execution_count="32">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L158" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_msg" class="level3">
+<h3 class="anchored" data-anchor-id="compact_msg">compact_msg</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_msg(</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>    m, user_toks, asst_toks, call_toks, result_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render one canonical message.</em></p>
+</section>
+</div>
+<div id="0d33e717" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.381039+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.384837+00:00&quot;,&quot;total&quot;:0.0038017619999948238}}" data-execution_count="33">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L153" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_tool" class="level3">
+<h3 class="anchored" data-anchor-id="compact_tool">compact_tool</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_tool(</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>    m, max_toks, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render the result parts of a tool message.</em></p>
+</section>
+</div>
+<div id="251a1ba6" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>policy <span class="op">=</span> <span class="bu">dict</span>(user_toks<span class="op">=</span><span class="dv">100</span>, asst_toks<span class="op">=</span><span class="dv">100</span>, call_toks<span class="op">=</span><span class="dv">40</span>, result_toks<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>rendered_turn1 <span class="op">=</span> [compact_msg(m, <span class="op">**</span>policy) <span class="cf">for</span> m <span class="kw">in</span> turn1]</span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>test_eq(rendered_turn1[<span class="dv">0</span>], user)</span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a>test_eq(rendered_turn1[<span class="dv">1</span>], assistant)</span>
+<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a>test_eq(rendered_turn1[<span class="dv">2</span>], <span class="st">'&gt; files = ["a.py", "b.py"]'</span>)</span>
+<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a>test_eq(rendered_turn1[<span class="dv">5</span>], skill)</span>
+<span id="cb53-7"><a href="#cb53-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'</span><span class="ch">\n</span><span class="st">'</span>.join(rendered_turn1))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>§ List the project files, use the project skill, then run a shell check. §
+» I will inspect the project. »
+```python
+files = ["a.py", "b.py"]
+```
+&gt; files = ["a.py", "b.py"]
+▶ Skill(skill='project-files')
+&gt; Skill loaded: project-files
+§ …skill text compacted: re-invoke before relying on it… §
+! printf "ready\n" ¶ ls -la
+&gt; ready</code></pre>
+</div>
+</div>
+</section>
+<section id="conversation-rendering" class="level3">
+<h3 class="anchored" data-anchor-id="conversation-rendering">Conversation rendering</h3>
+<p>A compact conversation groups messages into user-led turns and separates those turns with <code>***</code>. Each message normally uses the bounded policy. <code>last_n</code> protects the end of the conversation: the last <code>last_n</code> user prompts, and the final assistant reply to each, render with <code>user_toks</code> and <code>asst_toks</code> lifted, so the closing exchanges survive word for word. Tool calls, tool results, and assistant narration between tool calls keep their normal bounds even inside those exchanges, so one large file read near the end cannot swamp the compaction. Plumbing-only user messages (a <code>/compact</code> invocation, its stdout, a context report) and injected skill bodies are not prompts and never spend a slot.</p>
+<div id="9a7e00f2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.389665+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.395222+00:00&quot;,&quot;total&quot;:0.005560917999986259}}" data-execution_count="35">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L174" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_chat" class="level3">
+<h3 class="anchored" data-anchor-id="compact_chat">compact_chat</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_chat(</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>    msgs, user_toks, asst_toks, call_toks, result_toks, enc:NoneType<span class="op">=</span><span class="va">None</span>, last_n:<span class="bu">int</span><span class="op">=</span><span class="dv">0</span></span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render canonical messages as compact user-led turns.</em></p>
+</section>
+</div>
+<p>The sample contains three canonical user messages: the initial request, injected skill text, and the second human request. The skill contents therefore form a short intermediate turn, but are represented only by the compact placeholder.</p>
+<div id="17737967" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>compact <span class="op">=</span> compact_chat(conversation, enc<span class="op">=</span>enc, last_n<span class="op">=</span><span class="dv">5</span>, <span class="op">**</span>policy)</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>test_eq(compact.count(<span class="st">'</span><span class="ch">\n\n</span><span class="st">***</span><span class="ch">\n\n</span><span class="st">'</span>), <span class="dv">2</span>)</span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'§ …skill text compacted: re-invoke before relying on it… §'</span>, compact, in_)</span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'The fixture is short, readable, and ready for the renderer.'</span>, compact, in_)</span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>plumbed <span class="op">=</span> conversation <span class="op">+</span> [mk_msg(<span class="st">'&lt;local-command-stdout&gt;Compacted&lt;/local-command-stdout&gt;'</span>), cmd]</span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a>test_eq(compact_chat(plumbed, enc<span class="op">=</span>enc, last_n<span class="op">=</span><span class="dv">5</span>, <span class="op">**</span>policy), compact)</span>
+<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(compact)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>§ List the project files, use the project skill, then run a shell check. §
+» I will inspect the project. »
+```python
+files = ["a.py", "b.py"]
+```
+&gt; files = ["a.py", "b.py"]
+▶ Skill(skill='project-files')
+&gt; Skill loaded: project-files
+
+***
+
+§ …skill text compacted: re-invoke before relying on it… §
+! printf "ready\n" ¶ ls -la
+&gt; ready
+
+***
+
+§ Keep the agreed names; do not rename the fixture. §
+» Understood. I will verify the final state. »
+▶ inspect(path='fixture.json', lines=[1, 2])
+&gt; first line ¶ second line ¶ final line
+» The fixture is short, readable, and ready for the renderer. »</code></pre>
+</div>
+</div>
+<p>Different message classes have different informational value. User text gets the largest allowance because decisions and corrections cannot safely be reconstructed; assistant prose and tool calls can usually be re-derived; tool results retain a smaller evidential sample. The final five messages are rendered without these limits.</p>
+<p>A deliberately small policy makes truncation visible in this short fixture. We set <code>last_n=0</code> so every message uses the limits; this is a demonstration policy, not the production default.</p>
+<div id="871d1fce" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>small_policy <span class="op">=</span> <span class="bu">dict</span>(user_toks<span class="op">=</span><span class="dv">8</span>, asst_toks<span class="op">=</span><span class="dv">8</span>, call_toks<span class="op">=</span><span class="dv">8</span>, result_toks<span class="op">=</span><span class="dv">6</span>)</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>small <span class="op">=</span> compact_chat(conversation, last_n<span class="op">=</span><span class="dv">0</span>, <span class="op">**</span>small_policy)</span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>test(<span class="st">' … '</span>, small, in_)</span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> len_toks(small) <span class="op">&lt;</span> len_toks(compact)</span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(small)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>§ List the …  check. §
+» I will inspect the project. »
+```python
+files … "]
+```
+&gt; files … .py"]
+▶ Skill(skill='project-files')
+&gt; Skill loaded: project-files
+
+***
+
+§ …skill …  it… §
+! printf " …  ls -la
+&gt; ready
+
+***
+
+§ Keep the …  fixture. §
+» Understood …  state. »
+▶ inspect(path …  2])
+&gt; first …  final line
+» The fixture …  renderer. »</code></pre>
+</div>
+</div>
+<p>With <code>last_n=1</code> under the same small policy, the closing exchange shows what the window protects and what it does not: the final prompt and the final reply come back word for word, while the narration, the tool call, and the tool result in that same exchange stay truncated:</p>
+<div id="c22bd7d0" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>small1 <span class="op">=</span> compact_chat(conversation, last_n<span class="op">=</span><span class="dv">1</span>, <span class="op">**</span>small_policy)</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'§ Keep the agreed names; do not rename the fixture. §'</span>, small1, in_)</span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'» The fixture is short, readable, and ready for the renderer. »'</span>, small1, in_)</span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'» Understood …  state. »'</span>, small1, in_)</span>
+<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'&gt; first …  final line'</span>, small1, in_)</span>
+<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(small1.split(<span class="st">'***'</span>)[<span class="op">-</span><span class="dv">1</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+
+§ Keep the agreed names; do not rename the fixture. §
+» Understood …  state. »
+▶ inspect(path …  2])
+&gt; first …  final line
+» The fixture is short, readable, and ready for the renderer. »</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="compaction-documents" class="level2">
+<h2 class="anchored" data-anchor-id="compaction-documents">Compaction documents</h2>
+<p>The DSL body is wrapped with a short legend and a pointer to the complete transcript. The body supports orientation and reasoning, but it is not authoritative source text: truncation, newline substitution, and later edits mean code and commands must be reopened before reuse.</p>
+<div id="5ed8ee56" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.399266+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.403627+00:00&quot;,&quot;total&quot;:0.0043644659999984015}}" data-execution_count="38">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L195" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_content" class="level3">
+<h3 class="anchored" data-anchor-id="compact_content">compact_content</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_content(</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>    chat, path, notes:<span class="bu">str</span><span class="op">=</span><span class="st">''</span></span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Wrap compact conversation text as a continuation document.</em></p>
+</section>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_content"><code>compact_content</code></a> adds the legend, a <code>## Conversation</code> section, an optional notes section, and the path of the authoritative transcript.</p>
+<div id="f015d613" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>content <span class="op">=</span> compact_content(small, <span class="st">'/tmp/session.jsonl'</span>)</span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'## Conversation'</span>, content, in_)</span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'/tmp/session.jsonl'</span>, content, in_)</span>
+<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(content.split(<span class="st">'</span><span class="ch">\n\n</span><span class="st">## Conversation'</span>, <span class="dv">1</span>)[<span class="dv">0</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>This session is being continued from an earlier conversation. `§ … §` encloses user text; `» … »` encloses assistant text; fenced `python` is persistent-kernel execution; `!` marks Bash; `▶` marks another tool call; `&gt;` marks its result; `¶` replaces a newline; `***` separates user-led turns; and ` … ` marks removed middle content. The final five messages are preserved untruncated. This representation is for orientation only: never copy code or commands from it; reopen the original transcript or source file first.</code></pre>
+</div>
+</div>
+<div id="0a294e4d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.405114+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.409012+00:00&quot;,&quot;total&quot;:0.0039016289999835863}}" data-execution_count="40">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L206" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_body" class="level3">
+<h3 class="anchored" data-anchor-id="compact_body">compact_body</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_body(</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>    content</span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Extract the conversation body from a compaction document.</em></p>
+</section>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_body"><code>compact_body</code></a> removes the document wrapper and optional continuation notes, recovering only the conversation DSL. This lets repeated compaction retain an earlier immutable segment without recursively truncating it.</p>
+<div id="1cdf9038" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>test_eq(compact_body(content), small)</span>
+<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>with_notes <span class="op">=</span> compact_content(small, <span class="st">'/tmp/session.jsonl'</span>, <span class="st">'A useful note.'</span>)</span>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>test_eq(compact_body(with_notes), small)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Skill loads are the one thing the DSL compacts away entirely, so the document ends by instructing their re-invocation. The list derives from the <code>▶ Skill(...)</code> calls preserved in the body - including calls in earlier immutable segments, so repeated compaction keeps the union - and <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_body"><code>compact_body</code></a> discards the instruction along with the rest of the wrapper.</p>
+<div id="68ee944d" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>tailed <span class="op">=</span> compact_content(compact, <span class="st">'/tmp/session.jsonl'</span>)</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'re-invoke it: Skill(project-files)'</span>, tailed, in_)</span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>test_eq(compact_body(tailed), compact)</span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'Skill('</span> <span class="kw">not</span> <span class="kw">in</span> compact_content(<span class="st">'§ hi §'</span>, <span class="st">'/tmp/session.jsonl'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="f40b9e78" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.410525+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.414131+00:00&quot;,&quot;total&quot;:0.003609732999990456}}" data-execution_count="42">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L213" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="join_compacts" class="level3">
+<h3 class="anchored" data-anchor-id="join_compacts">join_compacts</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> join_compacts(</span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>parts</span>
+<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Join non-empty compact conversation segments.</em></p>
+</section>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#join_compacts"><code>join_compacts</code></a> concatenates non-empty conversation segments with the same <code>***</code> separator used between user-led turns. Empty segments are ignored, which handles sessions with no earlier synthetic compaction.</p>
+<div id="7bb22995" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>joined <span class="op">=</span> join_compacts(<span class="st">'first'</span>, <span class="st">''</span>, <span class="st">'second'</span>)</span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>test_eq(joined, <span class="st">'first</span><span class="ch">\n\n</span><span class="st">***</span><span class="ch">\n\n</span><span class="st">second'</span>)</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(joined)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>first
+
+***
+
+second</code></pre>
+</div>
+</div>
+</section>
+<section id="dialog-compaction" class="level2">
+<h2 class="anchored" data-anchor-id="dialog-compaction">Dialog compaction</h2>
+<p>Everything above compacts <em>transcripts</em>, where nothing is curated and every message class needs a budget. A dialog is different: notes, code, and stored outputs are the way they are because their author chose to keep them - they are load-bearing narrative, and trimming outputs is already easy to do in a host or with the ipynb tools. The uncurated bulk in a dialog is what the AI generated inside prompt messages. So dialog compaction touches prompts alone: the question is capped by <code>user_toks</code> (a pathology guard that rarely fires), and the reply is re-rendered in the DSL.</p>
+<p>There are two ways to project the result. <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#dialog.compact"><code>Dialog.compact</code></a> rewrites the replies in place, where message structure already says who is speaking, so <code>§</code> and <code>»</code> disappear - reply prose sits bare, and only tool calls, results, and code wear sigils - while <code>***</code> gives way to the dialog’s own message boundaries. Because prompts keep their ids and everything else is untouched, a compacted dialog remains a valid, runnable notebook: re-running it regenerates the real outputs, and all the message tools keep working on it. <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#dlg2compact"><code>dlg2compact</code></a> instead returns the whole dialog as one document, where nothing carries structure and every sigil is back.</p>
+<div id="904dc672" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.418145+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.423505+00:00&quot;,&quot;total&quot;:0.005362847000014881}}" data-execution_count="44">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> aidialog.hist <span class="im">import</span> chat2dlg</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>chat2dlg</code> turns the familiar fixture into a dialog: one prompt per user turn, replies carrying the tool calls as details blocks.</p>
+<div id="a27b02c5" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> chat2dlg(conversation, <span class="st">'demo'</span>)</span>
+<span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a>test_eq([m.msg_type <span class="cf">for</span> m <span class="kw">in</span> d.messages], [<span class="st">'prompt'</span>]<span class="op">*</span><span class="dv">3</span>)</span>
+<span id="cb72-3"><a href="#cb72-3" aria-hidden="true" tabindex="-1"></a>d</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>demo</strong></p>
+<details>
+<ul>
+<li>List the project files, use the project skill, then run a shell check. ⇒ [{‘output_type’: ‘display_data’, ‘metadata’: {‘is_ai_res’: …</li>
+<li>Base directory for this skill: /skills/project-files</li>
+</ul>
+<p>Inspect project files before editing. ⇒ [{‘output_type’: ‘display_data’, ‘metadata’: {‘is_ai_res’: … - Keep the agreed names; do not rename the fixture. ⇒ [{‘output_type’: ‘display_data’, ‘metadata’: {‘is_ai_res’: …</p>
+</details>
+</div>
+</div>
+<p>A reply is internally a mini-transcript: prose interleaved with tool-call details blocks. <code>fmt2hist</code> recovers its canonical parts (the same parse <code>dlg2chat</code> uses), and the DSL renderers above take over - each call followed by its own result, matched by id. Prose sits bare by default, because in the in-place form below the message structure already says whose voice it is; <code>mark='»'</code> delimits it for the flat form, where nothing else does. One wrinkle: <code>fmt2hist</code> appends a <code>'.'</code> placeholder text part when a reply ends with a tool result (wire formats require an assistant turn there); it carries no content, so the renderer drops it.</p>
+<div id="4b11ef0c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.426486+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.431566+00:00&quot;,&quot;total&quot;:0.0050845860000094945}}" data-execution_count="46">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L222" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_reply" class="level3">
+<h3 class="anchored" data-anchor-id="compact_reply">compact_reply</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_reply(</span>
+<span id="cb73-2"><a href="#cb73-2" aria-hidden="true" tabindex="-1"></a>    reply, asst_toks:NoneType<span class="op">=</span><span class="va">None</span>, call_toks:NoneType<span class="op">=</span><span class="va">None</span>, result_toks:NoneType<span class="op">=</span><span class="va">None</span>, enc:NoneType<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb73-3"><a href="#cb73-3" aria-hidden="true" tabindex="-1"></a>    mark:<span class="bu">str</span><span class="op">=</span><span class="st">''</span></span>
+<span id="cb73-4"><a href="#cb73-4" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a prompt’s reply in the DSL: prose (bare, or delimited by <code>mark</code>), each tool call followed by its result</em></p>
+</section>
+</div>
+<div id="1e3a33bc" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>creply <span class="op">=</span> compact_reply(d.messages[<span class="dv">0</span>].ai_res)</span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a>test_eq(creply, <span class="st">'''I will inspect the project.</span></span>
+<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a><span class="st">```python</span></span>
+<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a><span class="st">files = ["a.py", "b.py"]</span></span>
+<span id="cb74-5"><a href="#cb74-5" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb74-6"><a href="#cb74-6" aria-hidden="true" tabindex="-1"></a><span class="st">&gt; files = ["a.py", "b.py"]</span></span>
+<span id="cb74-7"><a href="#cb74-7" aria-hidden="true" tabindex="-1"></a><span class="st">▶ Skill(skill='project-files')</span></span>
+<span id="cb74-8"><a href="#cb74-8" aria-hidden="true" tabindex="-1"></a><span class="st">&gt; Skill loaded: project-files'''</span>)</span>
+<span id="cb74-9"><a href="#cb74-9" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'»'</span> <span class="kw">not</span> <span class="kw">in</span> creply <span class="kw">and</span> <span class="st">'§'</span> <span class="kw">not</span> <span class="kw">in</span> creply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A custom <code>mark</code> reinstates the reply markers, and a tool-using reply renders its call and result inline:</p>
+<div id="d708326a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a>test_eq(compact_reply(d.messages[<span class="dv">0</span>].ai_res, mark<span class="op">=</span><span class="st">'»'</span>).splitlines()[<span class="dv">0</span>], <span class="st">'» I will inspect the project. »'</span>)</span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(compact_reply(d.messages[<span class="dv">1</span>].ai_res))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>! printf "ready\n" ¶ ls -la
+&gt; ready</code></pre>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#message.compact"><code>Message.compact</code></a> applies the policy in place, and only to prompts: the question is mid-truncated by <code>user_toks</code>, and the reply is replaced by its DSL rendering. Every other message type returns unchanged - that content is curated, so compaction has no business with it. Budgets default to <code>compact_policy</code>.</p>
+<div id="b72a69bd" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.433575+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.437537+00:00&quot;,&quot;total&quot;:0.003965469000007715}}" data-execution_count="48">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L240" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="message.compact" class="level3">
+<h3 class="anchored" data-anchor-id="message.compact">Message.compact</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact(</span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>    user_toks:NoneType<span class="op">=</span><span class="va">None</span>, asst_toks:NoneType<span class="op">=</span><span class="va">None</span>, call_toks:NoneType<span class="op">=</span><span class="va">None</span>, result_toks:NoneType<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a>    enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb77-4"><a href="#cb77-4" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Compact a prompt message in place: cap the question, re-render the reply in the DSL; other types are left untouched</em></p>
+</section>
+</div>
+<div id="271e56e0" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb78"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb78-1"><a href="#cb78-1" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> d.messages[<span class="dv">0</span>]</span>
+<span id="cb78-2"><a href="#cb78-2" aria-hidden="true" tabindex="-1"></a>mid <span class="op">=</span> m.<span class="bu">id</span></span>
+<span id="cb78-3"><a href="#cb78-3" aria-hidden="true" tabindex="-1"></a>m.compact()</span>
+<span id="cb78-4"><a href="#cb78-4" aria-hidden="true" tabindex="-1"></a>test_eq(m.content, <span class="st">'List the project files, use the project skill, then run a shell check.'</span>)</span>
+<span id="cb78-5"><a href="#cb78-5" aria-hidden="true" tabindex="-1"></a>test_eq(m.ai_res, creply)</span>
+<span id="cb78-6"><a href="#cb78-6" aria-hidden="true" tabindex="-1"></a>test_eq(m.<span class="bu">id</span>, mid)</span>
+<span id="cb78-7"><a href="#cb78-7" aria-hidden="true" tabindex="-1"></a>nte <span class="op">=</span> d.mk_message(<span class="st">'A curated note with **important** rationale.'</span>, msg_type<span class="op">=</span>snote)</span>
+<span id="cb78-8"><a href="#cb78-8" aria-hidden="true" tabindex="-1"></a>test_eq(nte.compact(), nte)</span>
+<span id="cb78-9"><a href="#cb78-9" aria-hidden="true" tabindex="-1"></a>test_eq(nte.content, <span class="st">'A curated note with **important** rationale.'</span>)</span>
+<span id="cb78-10"><a href="#cb78-10" aria-hidden="true" tabindex="-1"></a>m</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display cell-output-markdown">
+<p>2facec68:p:List the project files, use the project skill, then run a shell check. &gt; I will inspect the project.¶<code>python¶files = ["a.py", "b.py"]¶</code>¶&gt; files = [“a.py”, “b.py”]¶▶ Skill(skill=‘project-files’)¶&gt; Skill loaded: project-files</p>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#dialog.compact"><code>Dialog.compact</code></a> maps <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#message.compact"><code>Message.compact</code></a> over the whole dialog and returns it. With the deliberately small demonstration policy from earlier, truncation becomes visible inside the replies while every question, note, and id survives; the result still validates as a dialog.</p>
+<div id="33d76f5d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.439183+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.442765+00:00&quot;,&quot;total&quot;:0.0035858180000047923}}" data-execution_count="50">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L249" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="dialog.compact" class="level3">
+<h3 class="anchored" data-anchor-id="dialog.compact">Dialog.compact</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact(</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>    user_toks:NoneType<span class="op">=</span><span class="va">None</span>, asst_toks:NoneType<span class="op">=</span><span class="va">None</span>, call_toks:NoneType<span class="op">=</span><span class="va">None</span>, result_toks:NoneType<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a>    enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Compact every prompt message in place; the rest of the notebook is untouched</em></p>
+</section>
+</div>
+<div id="8e0682a9" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a>d2 <span class="op">=</span> chat2dlg(conversation, <span class="st">'demo2'</span>)</span>
+<span id="cb80-2"><a href="#cb80-2" aria-hidden="true" tabindex="-1"></a>ids <span class="op">=</span> [m.<span class="bu">id</span> <span class="cf">for</span> m <span class="kw">in</span> d2.messages]</span>
+<span id="cb80-3"><a href="#cb80-3" aria-hidden="true" tabindex="-1"></a>befor <span class="op">=</span> <span class="bu">sum</span>(len_toks(m.ai_res) <span class="cf">for</span> m <span class="kw">in</span> d2.messages)</span>
+<span id="cb80-4"><a href="#cb80-4" aria-hidden="true" tabindex="-1"></a>d2.compact(<span class="op">**</span><span class="bu">dict</span>(small_policy, user_toks<span class="op">=</span><span class="dv">100</span>))</span>
+<span id="cb80-5"><a href="#cb80-5" aria-hidden="true" tabindex="-1"></a>test_eq([m.<span class="bu">id</span> <span class="cf">for</span> m <span class="kw">in</span> d2.messages], ids)</span>
+<span id="cb80-6"><a href="#cb80-6" aria-hidden="true" tabindex="-1"></a>test_eq(d2.messages[<span class="dv">2</span>].content, <span class="st">'Keep the agreed names; do not rename the fixture.'</span>)</span>
+<span id="cb80-7"><a href="#cb80-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">sum</span>(len_toks(m.ai_res) <span class="cf">for</span> m <span class="kw">in</span> d2.messages) <span class="op">&lt;</span> befor</span>
+<span id="cb80-8"><a href="#cb80-8" aria-hidden="true" tabindex="-1"></a>test(<span class="st">' … '</span>, d2.messages[<span class="dv">2</span>].ai_res, in_)</span>
+<span id="cb80-9"><a href="#cb80-9" aria-hidden="true" tabindex="-1"></a>d2.validate()</span>
+<span id="cb80-10"><a href="#cb80-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(d2.messages[<span class="dv">2</span>].ai_res)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Understood. …  final state.
+▶ inspect(path …  2])
+&gt; first …  final line
+The fixture is …  the renderer.</code></pre>
+</div>
+</div>
+<p>The other projection is flat: the whole dialog as one document, for pasting into another conversation’s context. It cannot go through <code>dlg2chat</code>, whose job is the <em>wire</em> form - there, notes and code cells are XML carrying ids, times, and meta, which is what a model needs mid-conversation and exactly what a reader does not. So the flat renderer walks the messages itself, and only prompts’ replies route through the DSL.</p>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#compact_code"><code>compact_code</code></a> renders one code message: the source fenced, then its output as a result line under the same budget a tool result gets. The <code>#_id</code> line above the fence is the message’s Solveit link, and doubles as the signal that this block is an authored cell rather than a tool call the AI made - a distinction the fence alone cannot carry, since <code>py</code> calls render as fences too.</p>
+<div id="9eb144f8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.444728+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.448506+00:00&quot;,&quot;total&quot;:0.003781333999995695}}" data-execution_count="52">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L255" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="compact_code" class="level3">
+<h3 class="anchored" data-anchor-id="compact_code">compact_code</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb82"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compact_code(</span>
+<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a>    m, call_toks:NoneType<span class="op">=</span><span class="va">None</span>, result_toks:NoneType<span class="op">=</span><span class="va">None</span>, enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb82-3"><a href="#cb82-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a code message: <code>#_id</code>, its source fenced, and its output as a result line</em></p>
+</section>
+</div>
+<div id="cb39dd72" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb83"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a>cm <span class="op">=</span> Message(<span class="st">'files = ["a.py", "b.py"]'</span>, msg_type<span class="op">=</span>scode, output<span class="op">=</span>code_output(<span class="st">'2 files'</span>))</span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>ccode <span class="op">=</span> compact_code(cm)</span>
+<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a>test_eq(ccode.splitlines()[<span class="dv">0</span>], <span class="ss">f'#_</span><span class="sc">{</span>cm<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'```python'</span>, ccode, in_)</span>
+<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>test_eq(ccode.splitlines()[<span class="op">-</span><span class="dv">1</span>], <span class="st">'&gt; 2 files'</span>)</span>
+<span id="cb83-6"><a href="#cb83-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ccode)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#_27a3b28f
+```python
+files = ["a.py", "b.py"]
+```
+&gt; 2 files</code></pre>
+</div>
+</div>
+<p><a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#dlg2compact"><code>dlg2compact</code></a> renders the whole dialog. Notes and prompt questions are <code>§</code> text on the user’s side of the conversation, replies are <code>»</code>-marked, and code cells sit between them as fenced blocks. Turns break after each prompt, so the notes and cells leading up to a question travel with it. Skipped messages and tagged raws are session bookkeeping rather than conversation, so both are dropped, as they are on the way to the wire.</p>
+<div id="8f9d7da4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-30T05:19:29.451991+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-30T05:19:29.457093+00:00&quot;,&quot;total&quot;:0.00510481300000265}}" data-execution_count="54">
+<hr>
+<p><a href="https://github.com/AnswerDotAI/llmsurgery/blob/main/llmsurgery/compact.py#L262" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="dlg2compact" class="level3">
+<h3 class="anchored" data-anchor-id="dlg2compact">dlg2compact</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb85"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dlg2compact(</span>
+<span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a>    dlg, user_toks:NoneType<span class="op">=</span><span class="va">None</span>, asst_toks:NoneType<span class="op">=</span><span class="va">None</span>, call_toks:NoneType<span class="op">=</span><span class="va">None</span>, result_toks:NoneType<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb85-3"><a href="#cb85-3" aria-hidden="true" tabindex="-1"></a>    enc:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb85-4"><a href="#cb85-4" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Render a whole dialog as one compact document, breaking turns after each prompt</em></p>
+</section>
+</div>
+<p>The mixed dialog compacts to one turn per prompt: a note renders as a prompt with no reply, the flat form marks reply prose, only the code cell is id-tagged, and no wire XML appears anywhere:</p>
+<div id="ff72482f" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb86"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a>d3 <span class="op">=</span> chat2dlg(conversation, <span class="st">'mixed'</span>)</span>
+<span id="cb86-2"><a href="#cb86-2" aria-hidden="true" tabindex="-1"></a>d3.mk_message(<span class="st">'## Project notes'</span>, msg_type<span class="op">=</span>snote, before<span class="op">=</span>d3.messages[<span class="dv">0</span>])</span>
+<span id="cb86-3"><a href="#cb86-3" aria-hidden="true" tabindex="-1"></a>d3.mk_message(<span class="st">'files = ["a.py", "b.py"]'</span>, msg_type<span class="op">=</span>scode, output<span class="op">=</span>code_output(<span class="st">'2 files'</span>), after<span class="op">=</span>d3.messages[<span class="dv">1</span>])</span>
+<span id="cb86-4"><a href="#cb86-4" aria-hidden="true" tabindex="-1"></a>doc3 <span class="op">=</span> dlg2compact(d3)</span>
+<span id="cb86-5"><a href="#cb86-5" aria-hidden="true" tabindex="-1"></a>test_eq(doc3.count(<span class="st">'</span><span class="ch">\n\n</span><span class="st">***</span><span class="ch">\n\n</span><span class="st">'</span>), <span class="dv">2</span>)</span>
+<span id="cb86-6"><a href="#cb86-6" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'§ ## Project notes §'</span>, doc3, in_)</span>
+<span id="cb86-7"><a href="#cb86-7" aria-hidden="true" tabindex="-1"></a>test(<span class="st">'» I will inspect the project. »'</span>, doc3, in_)</span>
+<span id="cb86-8"><a href="#cb86-8" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> doc3.count(<span class="st">'#_'</span>) <span class="op">==</span> <span class="dv">1</span> <span class="kw">and</span> <span class="st">'&lt;markdown'</span> <span class="kw">not</span> <span class="kw">in</span> doc3</span>
+<span id="cb86-9"><a href="#cb86-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(doc3[:<span class="dv">420</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>§ ## Project notes §
+§ List the project files, use the project skill, then run a shell check. §
+» I will inspect the project. »
+```python
+files = ["a.py", "b.py"]
+```
+&gt; files = ["a.py", "b.py"]
+▶ Skill(skill='project-files')
+&gt; Skill loaded: project-files
+
+***
+
+#_07316358
+```python
+files = ["a.py", "b.py"]
+```
+&gt; 2 files
+§ Base directory for this skill: /skills/project-files
+
+Inspect project files before editing. §
+! p</code></pre>
+</div>
+</div>
+<p>Both forms are lossy display-side projections: a compacted reply is no longer <code>fmt2hist</code>-clean, so <code>dlg2chat</code> and <code>reply2dlg</code> cannot recover its tool calls as structure afterwards. What survives is what the DSL guarantees: the shape of the work, every authored cell verbatim, and any <code>𝍁</code>-wrapped result whole. <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#dialog.compact"><code>Dialog.compact</code></a> writes that into the messages themselves, so the file stays a runnable notebook the message tools still address; <a href="https://AnswerDotAI.github.io/llmsurgery/compact.html#dlg2compact"><code>dlg2compact</code></a> returns text and touches nothing. When the full history matters, keep the original file and compact a copy.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/AnswerDotAI\.github\.io\/llmsurgery");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/AnswerDotAI/llmsurgery/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
