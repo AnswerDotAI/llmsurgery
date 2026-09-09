@@ -4,19 +4,19 @@ Find, read, search, and edit Codex session rollouts on this machine.
 
 ## Rollout layout
 
-Codex stores conversations below `CODEX_HOME/sessions`, partitioned by date. The thread UUID appears in the rollout filename. `cur_thread` reads the running thread id, `rollout_file` finds its JSONL file without assuming a date, and `project_thread` finds the latest thread for a project when no live id is available. `resolve_thread` accepts a UUID or a thread name.
+Codex stores rollouts under `CODEX_HOME/sessions` in date partitions. The filename includes the thread UUID. Use `cur_thread` for a running thread's id, `rollout_file` to locate its JSONL file, or `project_thread` for the newest thread in a project. `resolve_thread` accepts an id or unique prefix. Thread-name lookup requires app-server.
 
-A rollout is an event log. Each line is an envelope with a timestamp, record type, and payload. Responses API input and output appear as `response_item` records. The history sent to the next model turn is smaller than the full event log: `response_items` extracts those items, and `active_items` applies the latest compaction replacement. `load_rollout` preserves every record.
+A rollout records events in append order. Each line has a timestamp, record type, and payload. `response_item` records contain Responses API items. `response_items` extracts every such item. `active_items` reconstructs the history after the latest compaction replacement. `load_rollout` retains the complete event log.
 
-Codex has no separate machine-wide prompt-history file. User messages remain in their thread rollouts, so locating the correct thread is part of prompt recovery.
+`prompt_hist` reads user messages from thread rollouts. Finding the right thread is part of recovering earlier prompts.
 
 ## Reading workflow
 
-To find something that was said - an earlier discussion, a decision, work lost to compaction - start with `thread2dlg`, not with the records. It is near-instant, and turns a long event log into a dialog of a few dozen messages: `d.summary()` is the map (one sized row per message, a prompt's reply on its own line), `d.find_msgs(pat)` the search, `view_msg`/`view_msgs` the read. `doc(aidialog.dlgskill)` covers that layer, and a dialog written with `write_ipynb` is an ordinary ipynb whose prompt sources carry their replies, so `rgapi`'s `nbrg` searches saved threads across files, replies included.
+For an earlier discussion or decision, start with `thread2dlg`. It converts the active history into an aidialog dialog. Use `d.summary()` for a map with message sizes and a separate line for each prompt's reply. Search with `d.find_msgs(pat)`, then read with `view_msg` or `view_msgs`. Read `aidialog.dlgskill` for these tools. Save with `write_ipynb` to search across notebooks using `rgapi.nbrg`. The saved prompt sources include their replies.
 
-Work at the record level for surgery, or when an item's envelope is itself the question: locate with `cur_thread`, `project_thread`, or `resolve_thread`; load with `load_rollout`; extract the current model history with `active_items`; search readable content with `item_search`, whose hits each carry their item on `.item`; inspect a slice with `show_items`. Prefer `item_search` to grepping JSONL, since raw rollouts contain protocol events and encoded data.
+Use records directly when you need their envelopes or want to edit a rollout. Locate it with `cur_thread`, `project_thread`, or `resolve_thread`. Read it with `load_rollout`. Select the current history with `active_items`, search with `item_search`, and inspect slices with `show_items`. Search hits retain the original item in `.item`. These tools avoid the encoded data and protocol noise in raw JSONL.
 
-The reading functions do not modify rollouts. App-server owns ordinary thread creation, forking, naming, and native compaction. The synthetic compaction append functions write rollout JSONL directly and require Codex to be closed. Read their docs and inspect the prepared records before appending them.
+Reading functions do not modify rollouts. App-server handles ordinary thread creation, forking, naming, and native compaction. Synthetic compaction functions append JSONL directly. Close Codex before using them. Read their contracts and inspect the prepared record before appending it.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/oai.html.md"""
 
@@ -106,7 +106,7 @@ def thread_id(
 def response_items(
     recs, # Rollout records
 ):
-    "Every Responses API item recorded in `recs`, including superseded history; each item carries its envelope `timestamp`"
+    "All recorded Responses API items, including superseded history, with envelope timestamps when present"
     return L(dict(obj2dict(r.payload), **({'timestamp':r['timestamp']} if r.get('timestamp') else {})) for r in recs if r.get('type')=='response_item')
 
 def split_compaction(

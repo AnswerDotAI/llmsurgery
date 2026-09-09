@@ -1,4 +1,4 @@
-"""`llmsurgery.compact` defines a concise format for compacted LLM conversations. Long conversations need to preserve the theory, decisions, and evidence needed for useful continuation while using far fewer tokens. The format provides readable canonical rendering, bounded token budgets, tool calls and results, truncation, and repeated compaction.
+"""`llmsurgery.compact` renders conversation history as concise text for continuing a long session. It keeps a record of the reasoning, decisions, tool calls, and evidence within token budgets. Renderers handle fastllm's canonical messages and aidialog dialogs. You can also combine an earlier compacted segment with new history without truncating that segment again.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/compact.html.md"""
 

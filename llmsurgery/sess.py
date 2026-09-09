@@ -1,14 +1,18 @@
 """Find and read a session from either host
 
-Claude Code sessions and Codex threads are stored differently and read by different modules, but a person reaching for one has only an id and a question. `find_sess` takes that id, from either host, and says which host owns it and where the transcript is; `sess_dlg` reads it into a dialog for the aidialog tools. Ids may be given as any unique prefix.
+Have a session id but don't know which host it belongs to? `find_sess` searches Claude Code and Codex transcripts. It returns the host and path. A unique id prefix works too. Without a ref, it tries the current Codex thread id, then Claude's current session. No match raises `FileNotFoundError`; a match on both hosts raises `ValueError`.
 
-Where `ant.sess2dlg` and `oai.thread2dlg` are faithful conversions, `sess_dlg` is a reading view: it drops the host's bookkeeping and the harness's injected turns, and it reaches back through compactions by default, so the dialog holds the conversation rather than the machinery around it. The `sess2nb` command line writes that view to an ipynb.
+`sess_dlg` opens the result as an aidialog dialog; the `sess2nb` command saves that dialog to a notebook. Use these functions to read a conversation, not to reproduce the host's complete transcript. They remove bookkeeping and recognize some injected user turns, such as skill instructions. By default they include recorded conversation from before compaction. `ant.sess2dlg` and `oai.thread2dlg` retain more host context for editing.
 
-Both hosts record a transcript in append order, so reading the whole history needs no chain walking: for Claude, `ant.conv_recs` keeps the conversation records in the order they happened, and for Codex, `oai.response_items` returns every recorded item, superseded history included. `since_compact` swaps each for its narrower counterpart, `ant.sess_thread` and `oai.active_items`, giving only what the model would see now.
+Both hosts append conversation records in time order. To read the full recorded conversation, we use `ant.conv_recs` for Claude and `oai.response_items` for Codex. This includes history that compaction later superseded.
 
-Filtering is what makes this a reading view rather than a transcript. Compaction summaries go, because with the full history present they restate what is already there. Turns the harness injected go too: a skill body arrives as a user turn indistinguishable from a typed one except by its opening line. What remains is what a person said and what the assistant said back.
+Set `since_compact=True` to start from Claude's current message chain or Codex's active replacement history. The reading filters still apply, so this is not an exact copy of the model's input.
 
-`sess2nb` writes that dialog to an ipynb, so a session becomes a notebook to read, search, or paste from. It returns the path when called from Python and prints it when run as a command. `-r` converts the newest session for the current directory, from either host, so no id is needed for the session just finished.
+We drop Claude compaction summaries rather than repeat the earlier conversation. We also filter user turns whose opening text matches known injected content: skills, hook feedback, environment context, and similar instructions. A separate pattern recognizes slash commands with at most one argument. These are text heuristics, not a reliable distinction between everything a person wrote and everything a host inserted.
+
+`sess2nb` writes a notebook you can read, search, or paste from. From Python it returns the output path. The command prints that path with the message count, host, and transcript name. Pass an output path with `-o`; the function adds `.ipynb` if needed.
+
+Choose either a session id or `-r` for the newest session in the current directory. The usual reading options also apply: limit rendered tool strings with `mx`, keep only the post-compaction view with `Since_compact`, or remove tools with `strip_Tools`.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/sess.html.md"""
 
