@@ -1,8 +1,10 @@
-"""An ipynb mirror of every session transcript, so the dialog tools work on whole conversation histories
+"""Convert Claude Code and Codex transcripts to dialog notebooks for searching, reading, and archiving conversations
 
-Finding an old discussion means searching conversations, but transcripts are JSONL full of envelope noise, and each host stores them differently. The mirror solves this by convergence: every Claude session and Codex thread is kept as an ordinary dialog ipynb under one root, so `nbrg` searches all history at once, and `find_msgs`, `summary_dlg`, and `view_msg` read any hit -- transcript handling becomes exactly as convenient as dialog handling, on both hosts, and inherits every future improvement to those tools.
+Claude Code and Codex store conversations in different JSONL formats. `index` converts their transcripts to dialog notebooks under a shared root. Search those notebooks with `nbrg`. Read matches with `find_msgs`, `summary_dlg`, and `view_msg`.
 
-The division of labor is: filename is identity (the mirror keeps the transcript's relative path and stem), mtime is sync (each mirror carries its source's mtime, so staleness is a pure stat comparison), and meta is truth (nb-level meta records host, source path, and the conversation's real time span; each message's meta carries its source record's `created` time and `uid`, and ids are deterministic, so hits stay citable across regenerations). Mirrors live under XDG state (not cache: `index` keeps mirrors whose transcript was garbage-collected, so the mirror doubles as an archive, and cache directories are fair game for cleanup tools).
+The mirror also serves as an archive. It retains notebooks after their source transcripts disappear. Its default location is `$XDG_STATE_HOME/llmsurgery/mirror`, outside the cache directories that cleanup tools can remove.
+
+Notebook metadata records the host, source path, and conversation time span. Message metadata retains the source record's `created` time and `uid`. Unchanged messages keep their IDs across rebuilds, preserving references to search results.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/mirror.html.md"""
 

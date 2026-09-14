@@ -4,8 +4,8 @@
 
 ## Modules
 
-- [llmsurgery.ant](https://AnswerDotAI.github.io/llmsurgery/ant.html.md): Find, search, edit, and compact Claude Code sessions and prompt history
-- [llmsurgery.mirror](https://AnswerDotAI.github.io/llmsurgery/mirror.html.md): An ipynb mirror of every session transcript, so the dialog tools work on whole conversation histories
+- [llmsurgery.ant](https://AnswerDotAI.github.io/llmsurgery/ant.html.md): Read, search, and edit Claude Code sessions. Compact conversations and recover prompt history.
+- [llmsurgery.mirror](https://AnswerDotAI.github.io/llmsurgery/mirror.html.md): Convert Claude Code and Codex transcripts to dialog notebooks for searching, reading, and archiving conversations
 - [llmsurgery.oai](https://AnswerDotAI.github.io/llmsurgery/oai.html.md): Read, write, and build Codex session rollouts
 - [llmsurgery.sess](https://AnswerDotAI.github.io/llmsurgery/sess.html.md): Find and read a session from either host
 - `llmsurgery.skill`: Read and work with Claude Code and Codex session transcripts.

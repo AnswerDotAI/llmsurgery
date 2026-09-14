@@ -1,20 +1,27 @@
-"""Find, search, edit, and compact Claude Code sessions and prompt history
+"""Read, search, and edit Claude Code sessions. Compact conversations and recover prompt history.
 
-Find, read, search, and edit Claude Code session transcripts and prompt history on this machine.
+Use `sess2dlg` to read a Claude Code session as a dialog. It combines each user turn and its replies into one prompt message. `d.summary()` lists messages with their sizes. Search with `d.find_msgs(pat)` and read matches with `view_msg` or `view_msgs`. See `doc(aidialog.dlgskill)` for these tools.
 
-## Session layout
+`sess2dlg` follows the active chain. After compaction this includes the summary and subsequent conversation. To find earlier discussion still present in the transcript, search all records with `sess_search`. It excludes base64 data, signatures, and bookkeeping from the searchable text.
 
-The transcript format, its `~/.claude/projects` paths, and the read/write primitives (`sess_dir`, `sess_file`, `cur_sess`, `load_recs`, `load_sess`, `sess_thread`, `rec_txt`, `mk_rec`, `save_sess`, `msgs2sess`, ...) live in `fastclaude.session`, which this module builds on. Here `rec_role` classifies records (a user record carrying tool results counts as `tool`), `conv_recs` drops Claude Code's bookkeeping, and `resolve_session` accepts an id or a `/rename` title.
+Save a dialog with `write_ipynb` to search it alongside other notebooks with `rgapi.nbrg`. The saved prompt sources include their replies.
 
-Claude also appends every typed prompt to `~/.claude/history.jsonl`, with its project directory and a millisecond timestamp. `prompt_hist` reads it into filterable rows. This can recover the user's side when a transcript has been lost or rewritten.
+## Working with records
 
-## Reading workflow
+Use the record APIs to edit a session or inspect its metadata:
 
-To find something that was said - an earlier discussion, a decision, work lost to compaction - start with `sess2dlg`, not with the records. It costs a fraction of a second even on a 50MB transcript, and turns tens of thousands of records into a dialog of a few dozen messages: `d.summary()` is the map (one sized row per message, a prompt's reply on its own line), `d.find_msgs(pat)` the search, `view_msg`/`view_msgs` the read. `doc(aidialog.dlgskill)` covers that layer, and a dialog written with `write_ipynb` is an ordinary ipynb whose prompt sources carry their replies, so `rgapi`'s `nbrg` searches saved sessions across files, replies included.
+- Find the transcript with `sess_file`, `cur_sess`, or `resolve_session`. The latter accepts a session ID or its `/rename` title.
+- Load it with `load_sess`, or use `load_recs` for an arbitrary path.
+- Select the active chain with `sess_thread`. Use `conv_recs` to keep conversation records and `rec_role` to distinguish tool results from user messages.
+- Search with `sess_search`. Each hit has its record on `.rec`. Read surrounding records with `show_recs`.
 
-Work at the record level for surgery, or when a record's envelope is itself the question: locate with `sess_file`, `cur_sess`, or `resolve_session`; load with `load_sess`, or `load_recs` for an arbitrary path; select the active thread with `sess_thread` and `conv_recs`; search readable text with `sess_search`, whose hits each carry their record on `.rec`; read a slice with `show_recs`. Prefer `sess_search` to grepping JSONL, since raw files contain base64 data, signatures, and envelope noise.
+Claude Code stores transcripts under `~/.claude/projects`. `fastclaude.session` documents the format and provides the underlying reading and writing functions.
 
-Reading functions do not modify transcripts. `save_sess`, `append_sess`, `fork_curated`, and the compaction functions do. Read their docs and inspect the target records before calling them; `save_sess` replaces a whole session file.
+Reading functions and `prepare_compaction` do not modify transcripts. `save_sess` replaces a whole session file. `append_sess`, `fork_curated`, `append_compaction`, and `compact_session` also write session files. Inspect their documentation and target records before calling them.
+
+## Prompt history
+
+`prompt_hist` reads `~/.claude/history.jsonl`, Claude Code's global record of typed prompts. It includes each prompt's project directory and timestamp. Use it to recover the user's side of a conversation after transcript deletion or rewriting.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/ant.html.md"""
 
