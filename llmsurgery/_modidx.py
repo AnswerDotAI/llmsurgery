@@ -143,6 +143,4 @@ d = { 'settings': { 'branch': 'main',
                                  'llmsurgery.sess.recent_sess': ('sess.html#recent_sess', 'llmsurgery/sess.py'),
                                  'llmsurgery.sess.sess2nb': ('sess.html#sess2nb', 'llmsurgery/sess.py'),
                                  'llmsurgery.sess.sess_chat': ('sess.html#sess_chat', 'llmsurgery/sess.py'),
-                                 'llmsurgery.sess.sess_dlg': ('sess.html#sess_dlg', 'llmsurgery/sess.py')},
-            'llmsurgery.skill': {},
-            'llmsurgery.utils': {}}}
+                                 'llmsurgery.sess.sess_dlg': ('sess.html#sess_dlg', 'llmsurgery/sess.py')}}}
