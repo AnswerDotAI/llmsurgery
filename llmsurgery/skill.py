@@ -1,42 +1,36 @@
 """Read and work with Claude Code and Codex session transcripts.
 
-Use the mirror to find earlier discussions, decisions, or work lost to compaction. It stores ipynb copies of every Claude session and Codex thread on this machine, kept in sync automatically.
+Read and search conversations via dialog views; change transcripts via record-level tools. Inspect sessions with the read-only functions by default.
+
+# Searching every conversation
+
+The mirror keeps an ipynb copy of every Claude session and Codex thread on this machine, synced automatically. Use it to find earlier discussions, decisions, or work lost to compaction:
 
 ```python
 from llmsurgery.mirror import index
 nbrg(pat, index().root)
 ```
 
-This searches every conversation you have ever had with either agent. `index()` syncs before returning. It uses a stat-only pass when nothing changed and an incremental rebuild otherwise. The search is always current. Use `sess-index` from the CLI, with `--force` after conversion changes.
+This covers every conversation you've had with either agent. `index()` syncs before returning, so search is always current; from the shell, `sess-index` does the same, and `--force` rebuilds everything after conversion changes. Hits are ordinary dialogs: read them with `find_msgs`, `summary_dlg`, `view_msg`. `doc(llmsurgery.mirror)` covers the metadata keeping hits citable across reindexes, and why the mirror doubles as an archive.
 
-Hits are ordinary dialogs. Read them with `find_msgs`, `summary_dlg`, and `view_msg`. Notebook metadata records the source transcript and the conversation's true time span. Message metadata retains each source record's `created` time and `uid`. Message IDs are deterministic. Hits stay citable across reindexes. Mirrors of garbage-collected transcripts are kept: the mirror doubles as an archive.
+# Reading one session
 
-Use `sess_dlg(ref)` to read one session. It accepts a session ID or unique prefix from either Claude Code or Codex and returns the conversation with bookkeeping and injected turns dropped. `sess2dlg` (Claude Code) and `thread2dlg` (Codex) are the faithful per-host conversions. All cost a fraction
-of a second and turn tens of thousands of records into a summary of a few dozen
-rows.
+`sess_dlg(ref)` opens a Claude session or Codex thread as a dialog, from its ID or a unique prefix; `doc(llmsurgery.sess)` covers what it drops and when to use the per-host `sess2dlg`/`thread2dlg` instead. These conversions take a fraction of a second, turning tens of thousands of records into a summary of a few dozen rows. Check message sizes with `d.summary()` before choosing what to read, then use `d.find_msgs(pat)`, `view_msg`, or `view_msgs` (see `doc(aidialog.dlgskill)`). The `sess2nb` command saves a session as a notebook.
 
-Use `d.summary()` to inspect message sizes before deciding what to read. Search with `d.find_msgs(pat)` and read messages with `view_msg` or `view_msgs`. `doc(aidialog.dlgskill)` explains these tools. The `sess2nb` command writes the conversation to an ipynb at a path you choose.
+# Changing transcripts
 
-Use record-level tools to change transcripts. For reading conversations, use the dialog tools above.
+Load records with `load_sess` (Claude Code) or `load_recs` (Codex); search them with `sess_search`/`item_search`, whose hits carry the full record or item; read a slice with `show_recs`/`show_items`. Before changing a transcript, read the relevant module and function docs, and inspect the target records.
 
-- Load records with `load_sess` or `load_recs`.
-- Search with `sess_search` or `item_search`. Each hit contains its full record on `.rec` or its full item on `.item`. You do not need to calculate an index to read it.
-- Read a slice with `show_recs` or `show_items`.
+# Module guide
 
-Use `doc(llmsurgery.ant)` for Claude Code JSONL sessions and prompt history.
-Use `doc(llmsurgery.oai)` for Codex rollout files. Those module docs explain
-where transcripts live, how to locate and search them, and which operations
-write files.
-Use `doc(llmsurgery.sess)` for finding a session on either host and reading it.
-Use `doc(llmsurgery.mirror)` for the mirror and its indexing.
+- `doc(llmsurgery.ant)`: Claude Code JSONL sessions and prompt history
+- `doc(llmsurgery.oai)`: Codex rollout files
+- `doc(llmsurgery.sess)`: finding a session on either host and reading it
+- `doc(llmsurgery.mirror)`: the mirror and its indexing
+- `doc(llmsurgery.compact)`: compact conversation documents and transcript compaction
+- `doc(aidialog.hist)`: conversions between dialogs and chat histories or replies
 
-Use `doc(aidialog.hist)` for conversions between dialogs and chat histories or
-replies. Use `doc(llmsurgery.compact)` for compact conversation documents and
-transcript compaction.
-
-Inspect sessions through the read-only functions by default. Before changing a
-transcript, read the relevant module and function docs and inspect the target
-records.
+The `ant` and `oai` docs cover where transcripts live, how to find and search them, and which operations write files.
 """
 
 __all__ = []

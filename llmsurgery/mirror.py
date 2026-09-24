@@ -68,7 +68,7 @@ def index(
     force=False, # Rebuild every mirror, e.g. after the conversion logic changes?
     verbose=False, # Print each rebuilt mirror?
 ):
-    "Sync the mirror with both hosts' stores: rebuild stale, keep orphans, collect failures; the result carries the mirror `root`"
+    "Sync the mirror with both hosts' stores: a stat-only mtime check skips unchanged transcripts, stale ones are rebuilt, orphans kept, failures collected; the result carries the mirror `root`"
     built,fresh,failed = L(),0,L()
     for host,store,p in transcripts(ant_root, codex_home):
         d = mirror_path(host, store, p, root)

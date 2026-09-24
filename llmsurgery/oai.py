@@ -531,12 +531,11 @@ def _split_synthetic(items):
     return L(items),''
 
 # %% ../nbs/04_oai.ipynb #27e47c0d
-def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None, strip=None):
+def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
     "Prepare an incremental synthetic compaction without writing it"
     tid,path = resolve_thread(ref, codex_home)
     recs = load_recs(path)
     prior,new = split_compaction(recs)
-    if strip: new = strip(new)
     keep,prior_body = _split_synthetic(prior)
     msgs = items2chat(new)
     if not msgs: raise ValueError(f'No new items to compact in {tid}')
@@ -550,6 +549,7 @@ def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, e
     payload = dict(message='', replacement_history=list(keep + L(new).filter(_ctx_item) + [codex_msg('user', content)]),
         window_number=len(comps)+1, first_window_id=first, previous_window_id=prev, window_id=str(uuid.uuid4()))
     rec = dict(timestamp=_ts(), type='compacted', payload=payload)
+    if (o := recs[-1].get('ordinal')) is not None: rec['ordinal'] = o+1
     return AttrDict(tid=tid,path=path,rec=rec,prior=prior_body,new_chat=new_chat,chat=chat,full=full,content=content,
         pre_toks=len_toks(full,enc),post_toks=len_toks(content,enc))
 
@@ -559,8 +559,8 @@ def append_compaction(compaction):
     with Path(compaction.path).open('a') as f: f.write(json.dumps(obj2dict(compaction.rec))+'\n')
     return compaction.path
 
-def compact_session(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None, strip=None):
+def compact_session(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
     "Generate and append a synthetic thread compaction"
-    compaction = prepare_compaction(ref, codex_home, policy, enc, strip)
+    compaction = prepare_compaction(ref, codex_home, policy, enc)
     append_compaction(compaction)
     return compaction
