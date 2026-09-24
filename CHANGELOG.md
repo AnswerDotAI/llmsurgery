@@ -2,6 +2,15 @@
 
 <!-- do not remove -->
 
+## 0.0.17
+
+### New Features
+
+- Add claudecompact and codexcompact ([#40](https://github.com/AnswerDotAI/llmsurgery/issues/40))
+- Preserve rollout ordinals on synthetic Codex compactions; drop `prepare_compaction` strip arg; restructure skill.py guidance ([#39](https://github.com/AnswerDotAI/llmsurgery/issues/39))
+- Rewrite compact, oai, and sess prose docs for clarity and accuracy ([#38](https://github.com/AnswerDotAI/llmsurgery/issues/38))
+
+
 ## 0.0.16
 
 ### New Features
