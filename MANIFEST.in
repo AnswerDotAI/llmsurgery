@@ -3,4 +3,3 @@ include LICENSE
 include CONTRIBUTING.md
 include README.md
 global-exclude *.pyc
-recursive-include llmsurgery/data *
