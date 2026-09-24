@@ -26,6 +26,8 @@ Documentation = "https://AnswerDotAI.github.io/llmsurgery/"
 
 [project.scripts]
 sess2nb = "llmsurgery.sess:sess2nb"
+claudecompact = "llmsurgery.sess:claudecompact"
+codexcompact = "llmsurgery.sess:codexcompact"
 sess-index = "llmsurgery.mirror:sess_index"
 
 [project.entry-points.nbdev]
