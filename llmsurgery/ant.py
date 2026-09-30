@@ -58,10 +58,10 @@ def conv_recs(
 def rec_role(
     r, # A session record
 ):
-    "The conversational role of `r`: a user record carrying tool results counts as `tool`"
+    "The conversational role of `r`: a user record holding only tool results counts as `tool`"
     r = obj2dict(r)
     c = r['message']['content']
-    if r['type']=='user' and isinstance(c, list) and any(b.get('type')=='tool_result' for b in c): return 'tool'
+    if r['type']=='user' and isinstance(c, list) and c and all(b.get('type')=='tool_result' for b in c): return 'tool'
     return r['type']
 
 # %% ../nbs/03_ant.ipynb #defb1a03
@@ -310,11 +310,11 @@ def recs2chat(
                 elif b['type']=='fallback': continue  # mid-response model-switch bookkeeping, no content
                 else: raise ValueError(f"unsupported assistant block: {b['type']}")
             add(Msg(role='assistant', content=parts))
-        elif rec_role(r)=='tool':
-            if not all(b.get('type')=='tool_result' for b in c): raise ValueError('record mixes tool_result with other blocks')
-            add(Msg(role='tool', content=[ToolResult(id=b['tool_use_id'], name=names.get(b['tool_use_id']),
-                text=_tr_txt(b)) for b in c]))
-        else: add(_norm_user(c))
+        else:
+            trs = [b for b in c if b.get('type')=='tool_result'] if isinstance(c, list) else []
+            if trs: add(Msg(role='tool', content=[ToolResult(id=b['tool_use_id'], name=names.get(b['tool_use_id']),
+                text=_tr_txt(b)) for b in trs]))
+            if rec_role(r)=='user': add(_norm_user([b for b in c if b.get('type')!='tool_result'] if trs else c))
     return msgs
 
 # %% ../nbs/03_ant.ipynb #abc4a08a
@@ -330,8 +330,10 @@ def sess2dlg(
         sid = sid or cur_sess(cwd)
         recs = load_sess(sid,cwd)
     recs = strip_think(sess_thread(L(recs)))
-    dlg = chat2dlg(recs2chat(recs), name or sid or 'session', mx=mx)
-    prompts,t,anchor = [m for m in dlg.messages if m.msg_type==sprompt],-1,None
+    msgs = recs2chat(recs)
+    dlg = chat2dlg(msgs, name or sid or 'session', mx=mx)
+    # `chat2dlg` opens with an empty prompt when the first message is a reply, as a fork's transcript does
+    prompts,t,anchor = [m for m in dlg.messages if m.msg_type==sprompt],-1 if not msgs or msgs[0].role=='user' else 0,None
     for r in recs:
         r = obj2dict(r)
         if r['type']=='user' and rec_role(r)!='tool':
