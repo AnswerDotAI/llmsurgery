@@ -2,6 +2,17 @@
 
 <!-- do not remove -->
 
+## 0.0.18
+
+### New Features
+
+- Move dialog/chat conversion imports from aidialog to new aihist package ([#42](https://github.com/AnswerDotAI/llmsurgery/issues/42))
+
+### Bugs Squashed
+
+- Handle user records that mix tool results with new user text, and anchor fork transcripts that begin with a tool result ([#41](https://github.com/AnswerDotAI/llmsurgery/issues/41))
+
+
 ## 0.0.17
 
 ### New Features
