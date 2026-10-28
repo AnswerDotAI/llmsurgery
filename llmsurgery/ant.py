@@ -41,7 +41,7 @@ from fastcore.utils import *
 from fastllm.anthropic import denorm_msgs, norm_tr_parts
 from fastllm.chat import mk_msg
 from aidialog.msg_parts import Msg, Part, Text, Thinking, ToolUse, ToolResult, tool_text
-from aidialog.hist import dlg2chat, chat2dlg
+from aihist.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
 from .utils import MAXLEN

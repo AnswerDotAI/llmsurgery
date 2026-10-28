@@ -42,7 +42,7 @@ except ImportError: AsyncCodex=CodexConfig=AsyncThread=ThreadInjectItemsResponse
 from fastcore.utils import *
 from fastllm.openai_responses import denorm_msgs
 from aidialog.msg_parts import Msg, Text, InputImage, ToolUse, ToolResult
-from aidialog.hist import dlg2chat, chat2dlg
+from aihist.hist import dlg2chat, chat2dlg
 from aidialog.dialog import *
 from .compact import *
 from .utils import MAXLEN

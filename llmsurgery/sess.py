@@ -30,7 +30,7 @@ from fastcore.utils import *
 from fastcore.xdg import xdg_config_home
 import os, re, sys, tomllib
 from aidialog.msg_parts import Msg, Text, ToolUse
-from aidialog.hist import chat2dlg
+from aihist.hist import chat2dlg
 from aidialog.ipynb import write_ipynb
 from . import ant, oai
 
@@ -112,7 +112,7 @@ def path_dlg(
     since_compact=False, # Only the conversation since the last compaction?
     strip_tools=False, # Drop tool calls and their results entirely?
 ):
-    "The conversation of the transcript at `path` as a dialog, its nb meta recording source and time span"
+    "The conversation of the transcript at `path` as a dialog held in memory, its nb meta recording source and time span. Read `doc(aidialog.dlgskill)` before using its dialog API."
     msgs = [m for m in sess_chat(host, path, since_compact) if not _injected(m)]
     if strip_tools: msgs = _no_tools(msgs)
     dlg = chat2dlg(msgs, name or Path(path).stem, mx=mx)
@@ -130,7 +130,7 @@ def sess_dlg(
     since_compact=False, # Only the conversation since the last compaction?
     strip_tools=False, # Drop tool calls and their results entirely?
 ):
-    "The conversation of a Claude session or Codex thread as a dialog, ready to read or save"
+    "The conversation of a Claude session or Codex thread as a dialog held in memory, ready to read or save. Search it with `find_msgs`. Read one message with `msg(id).view()`. Read `doc(aidialog.dlgskill)` before using any other dialog API."
     host,path = find_sess(ref, cwd, codex_home)
     return path_dlg(host, path, name or str(ref or path.stem), mx=mx, since_compact=since_compact, strip_tools=strip_tools)
 

@@ -215,7 +215,7 @@ def join_compacts(*parts):
     return '\n\n***\n\n'.join(part for part in parts if part)
 
 # %% ../nbs/02_compact.ipynb #0f5f4c5e
-from aidialog.msg_parts import fmt2hist
+from aihist.reply import fmt2hist
 from aidialog.dialog import *
 
 # %% ../nbs/02_compact.ipynb #1f0614f1
