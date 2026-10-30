@@ -71,6 +71,7 @@ _re_warnnote = re.compile(r'<(warn|note)>.*?</\1>', re.DOTALL)
 def compact_result(s, max_toks, enc=None):
     "Render a tool result within `max_toks`; `<warn>`/`<note>` doc-state blocks are dropped, and a `𝍁`-wrapped result is kept whole."
     s = _re_warnnote.sub('', s).strip()
+    if s.startswith('Async agent launched successfully.'): s = 'Agent launched'
     keep = len(s)>2 and s[0]=='𝍁' and s[-1]=='𝍁'
     if keep: s = s[1:-1]
     text = ' ¶ '.join(line.strip() for line in s.splitlines() if line.strip())
@@ -117,7 +118,7 @@ def compact_call(p, max_toks, enc=None):
     return generic_call(name, args, max_toks, enc)
 
 # %% ../nbs/02_compact.ipynb #d5c7af9a
-_re_plumbing = re.compile(r'\s*<(command-name|command-message|command-args|local-command-stdout|local-command-caveat|system-reminder)>')
+_re_plumbing = re.compile(r'\s*(?:<(command-name|command-message|command-args|local-command-stdout|local-command-caveat|system-reminder)>|Stop hook feedback:)')
 
 def _plumbing(text):
     "Is this user text host plumbing (slash-command records, command stdout, hook output) rather than prose?"
@@ -127,16 +128,36 @@ def _skill_text(text):
     "Is this user text an injected skill body?"
     return text.startswith('Base directory for this skill:')
 
+_re_agent = re.compile(
+    r'\s*(?:<task-notification>(?P<task>.*?)</task-notification>'
+    r'|Another Claude session sent a message:\s*<agent-message\b[^>]*>(?P<message>.*?)</agent-message>)\s*', re.DOTALL)
+
+def _agent_text(text):
+    "Extract agent prose or task status from a standalone host envelope; None means ordinary text"
+    if not (m := _re_agent.fullmatch(text)): return None
+    if m['message'] is not None: return f"Agent: {m['message'].strip()}"
+    fields = dict(re.findall(r'<(summary|status|event|result)>(.*?)</\1>', m['task'], flags=re.DOTALL))
+    summary,event = fields.get('summary', ''),fields.get('event', '')
+    if summary.startswith('Monitor event:') and (event=='ping' or event.startswith('[Monitor expired after')): return ''
+    name = re.match(r'Agent "([^"]+)"', summary)
+    label,status = name[1] if name else 'Task',fields.get('status', '')
+    if status and status!='completed': label += f' [{status}]'
+    body = fields.get('result') or ': '.join(filter(None, (summary, event))) or status
+    return f'{label}: {body.strip()}' if body else ''
+
 # %% ../nbs/02_compact.ipynb #8294df66
-def compact_user_part(p, max_toks, enc=None):
-    "Render one user-text part, replacing injected skill contents."
+def compact_user_part(p, max_toks, enc=None, asst_toks=None):
+    "Render user prose, a bounded agent result, or a reminder to reload injected skills"
+    if (text := _agent_text(p.text)) is not None:
+        return compact_result(text, 2*(compact_policy['asst_toks'] if asst_toks is None else asst_toks), enc) if text else ''
     text = '…skill text compacted: re-invoke before relying on it…' if _skill_text(p.text) else p.text
     return compact_text(text, '§', max_toks, enc)
 
-def compact_user(m, max_toks, enc=None):
-    "Render the text parts of a user message, dropping plumbing parts."
-    return '\n'.join(compact_user_part(p, max_toks, enc)
+def compact_user(m, max_toks, enc=None, asst_toks=None):
+    "Render the text parts of a user message, dropping plumbing parts"
+    parts = (compact_user_part(p, max_toks, enc, asst_toks)
         for p in m.content if isinstance(p, Text) and not _plumbing(p.text))
+    return '\n'.join(filter(None, parts))
 
 # %% ../nbs/02_compact.ipynb #c43c4e7e
 def compact_asst_part(p, text_toks, call_toks, enc=None):
@@ -150,22 +171,23 @@ def compact_asst(m, text_toks, call_toks, enc=None):
     return '\n'.join(filter(None, parts))
 
 # %% ../nbs/02_compact.ipynb #30805c31
-def compact_tool(m, max_toks, enc=None):
-    "Render the result parts of a tool message."
-    return '\n'.join(compact_result(p.text, max_toks, enc)
+def compact_tool(m, max_toks, enc=None, asst_toks=None):
+    "Render tool results, giving agent reports twice the assistant prose budget"
+    atoks = 2*(compact_policy['asst_toks'] if asst_toks is None else asst_toks)
+    return '\n'.join(compact_result(p.text, atoks if p.name=='Agent' else max_toks, enc)
         for p in m.content if isinstance(p, ToolResult))
 
 def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
-    "Render one canonical message."
-    if m.role == 'user': return compact_user(m, user_toks, enc)
+    "Render one canonical message"
+    if m.role == 'user': return compact_user(m, user_toks, enc, asst_toks)
     if m.role == 'assistant': return compact_asst(m, asst_toks, call_toks, enc)
-    if m.role == 'tool': return compact_tool(m, result_toks, enc)
+    if m.role == 'tool': return compact_tool(m, result_toks, enc, asst_toks)
 
 # %% ../nbs/02_compact.ipynb #44c88dee
 def _is_prompt(m):
     "Is `m` a substantive user prompt? Plumbing and injected skill bodies are not, so they never spend `last_n` slots"
     if m.role != 'user': return False
-    return any(isinstance(p, Text) and not _plumbing(p.text) and not _skill_text(p.text) for p in m.content)
+    return any(isinstance(p, Text) and not _plumbing(p.text) and not _skill_text(p.text) and _agent_text(p.text) is None for p in m.content)
 
 def _last_reply(msgs, s, e):
     "Index of the last text-bearing assistant message in `msgs[s:e]`, or None"
@@ -181,7 +203,8 @@ def compact_chat(msgs, user_toks, asst_toks, call_toks, result_toks, enc=None, l
     turns = []
     for i,m in enumerate(msgs):
         if m.role == 'user' or not turns: turns.append([])
-        p = dict(policy, user_toks=10**9, asst_toks=10**9) if i in lift else policy
+        p = dict(policy)
+        if i in lift: p['user_toks' if m.role=='user' else 'asst_toks'] = 10**9
         turns[-1].append(compact_msg(m, enc=enc, **p))
     rendered = ('\n'.join(filter(None, turn)) for turn in turns)
     return '\n\n***\n\n'.join(filter(None, rendered))
@@ -194,7 +217,7 @@ _re_skill = re.compile(r"▶ Skill\(skill='([^']+)'")
 
 def compact_content(chat, path, notes=''):
     "Wrap compact conversation text as a continuation document."
-    intro = "This session is being continued from an earlier conversation. `§ … §` encloses user text; `» … »` encloses assistant text; fenced `python` is persistent-kernel execution; `!` marks Bash; `▶` marks another tool call; `>` marks its result; `¶` replaces a newline; `***` separates user-led turns; and ` … ` marks removed middle content. The final five messages are preserved untruncated. This representation is for orientation only: never copy code or commands from it; reopen the original transcript or source file first."
+    intro = "This session is being continued from an earlier conversation. `§ … §` encloses user text; `» … »` encloses assistant text; fenced `python` is persistent-kernel execution; `!` marks Bash; `▶` marks another tool call; `>` marks a tool or agent result; `¶` replaces a newline; `***` separates user-led turns; and ` … ` marks removed middle content. Recent human prompts and their final assistant replies may be preserved untruncated; agent results remain bounded. This representation is for orientation only: never copy code or commands from it; reopen the original transcript or source file first."
     res = f'{intro}\n\n## Conversation\n\n{chat}'
     if notes: res += f'\n\n## Auto-generated continuation notes\n\n{notes}'
     res += f'\n\nIf further detail is needed, read the complete transcript at: {path}'
@@ -232,7 +255,9 @@ def compact_reply(reply, asst_toks=None, call_toks=None, result_toks=None, enc=N
                 out.append(compact_text(p.text, mark, atoks, enc) if mark else trunctoks_mid(p.text.strip(), atoks, enc))
             elif isinstance(p, ToolUse):
                 out.append(compact_call(p, ifnone(call_toks, compact_policy['call_toks']), enc))
-                if r := results.get(p.id): out.append(compact_result(r.text, ifnone(result_toks, compact_policy['result_toks']), enc))
+                if r := results.get(p.id):
+                    rtoks = 2*atoks if p.name=='Agent' else ifnone(result_toks, compact_policy['result_toks'])
+                    out.append(compact_result(r.text, rtoks, enc))
     return '\n'.join(filter(None, out))
 
 # %% ../nbs/02_compact.ipynb #73962ff1
