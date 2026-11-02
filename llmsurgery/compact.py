@@ -68,15 +68,16 @@ def compact_text(s, mark, max_toks, enc=None):
 # %% ../nbs/02_compact.ipynb #e3f22ddb
 _re_warnnote = re.compile(r'<(warn|note)>.*?</\1>', re.DOTALL)
 
-def compact_result(s, max_toks, enc=None):
-    "Render a tool result within `max_toks`; `<warn>`/`<note>` doc-state blocks are dropped, and a `𝍁`-wrapped result is kept whole."
+def compact_result(s, max_toks, enc=None, full=False):
+    "Render a tool result within `max_toks`; `<warn>`/`<note>` doc-state blocks are dropped, and full results stay marked and untruncated."
+    full = full or getattr(s, 'full', False)
     s = _re_warnnote.sub('', s).strip()
     if s.startswith('Async agent launched successfully.'): s = 'Agent launched'
     keep = len(s)>2 and s[0]=='𝍁' and s[-1]=='𝍁'
     if keep: s = s[1:-1]
     text = ' ¶ '.join(line.strip() for line in s.splitlines() if line.strip())
     res = f'> {text}' if text else '>'
-    return res if keep else trunctoks_mid(res, max_toks, enc)
+    return f'𝍁{res}𝍁' if full or keep else trunctoks_mid(res, max_toks, enc)
 
 # %% ../nbs/02_compact.ipynb #783d1ab0
 def fenced_code(code, max_toks, enc=None):
@@ -174,7 +175,7 @@ def compact_asst(m, text_toks, call_toks, enc=None):
 def compact_tool(m, max_toks, enc=None, asst_toks=None):
     "Render tool results, giving agent reports twice the assistant prose budget"
     atoks = 2*(compact_policy['asst_toks'] if asst_toks is None else asst_toks)
-    return '\n'.join(compact_result(p.text, atoks if p.name=='Agent' else max_toks, enc)
+    return '\n'.join(compact_result(p.text, atoks if p.name=='Agent' else max_toks, enc, full=p.full)
         for p in m.content if isinstance(p, ToolResult))
 
 def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
@@ -217,7 +218,7 @@ _re_skill = re.compile(r"▶ Skill\(skill='([^']+)'")
 
 def compact_content(chat, path, notes=''):
     "Wrap compact conversation text as a continuation document."
-    intro = "This session is being continued from an earlier conversation. `§ … §` encloses user text; `» … »` encloses assistant text; fenced `python` is persistent-kernel execution; `!` marks Bash; `▶` marks another tool call; `>` marks a tool or agent result; `¶` replaces a newline; `***` separates user-led turns; and ` … ` marks removed middle content. Recent human prompts and their final assistant replies may be preserved untruncated; agent results remain bounded. This representation is for orientation only: never copy code or commands from it; reopen the original transcript or source file first."
+    intro = "This session is being continued from an earlier conversation. `§ … §` encloses user text; `» … »` encloses assistant text; fenced `python` is persistent-kernel execution; `!` marks Bash; `▶` marks another tool call; `>` marks a tool or agent result; `𝍁…𝍁` marks a result that must remain untruncated; `¶` replaces a newline; `***` separates user-led turns; and ` … ` marks removed middle content. Recent human prompts and their final assistant replies may be preserved untruncated; ordinary agent results remain bounded. This representation is for orientation only: never copy code or commands from it; reopen the original transcript or source file first."
     res = f'{intro}\n\n## Conversation\n\n{chat}'
     if notes: res += f'\n\n## Auto-generated continuation notes\n\n{notes}'
     res += f'\n\nIf further detail is needed, read the complete transcript at: {path}'
@@ -257,7 +258,7 @@ def compact_reply(reply, asst_toks=None, call_toks=None, result_toks=None, enc=N
                 out.append(compact_call(p, ifnone(call_toks, compact_policy['call_toks']), enc))
                 if r := results.get(p.id):
                     rtoks = 2*atoks if p.name=='Agent' else ifnone(result_toks, compact_policy['result_toks'])
-                    out.append(compact_result(r.text, rtoks, enc))
+                    out.append(compact_result(r.text, rtoks, enc, full=r.full))
     return '\n'.join(filter(None, out))
 
 # %% ../nbs/02_compact.ipynb #73962ff1

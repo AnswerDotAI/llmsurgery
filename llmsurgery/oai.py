@@ -62,8 +62,13 @@ def rollout_file(
     thread_id, # Thread UUID or unique id prefix
     codex_home=CODEX_HOME, # Codex home containing sessions
 ):
-    "The persisted rollout for `thread_id`, if it exists"
-    return uniq_path((Path(codex_home)/'sessions').rglob(f'*{thread_id}*.jsonl'), thread_id)
+    "The newest persisted rollout for `thread_id`, if it exists"
+    paths = sorted((Path(codex_home)/'sessions').rglob(f'*{thread_id}*.jsonl'), key=lambda p:p.stat().st_mtime, reverse=True)
+    found = {}
+    for path in paths:
+        with path.open() as f: meta = json.loads(f.readline())
+        if meta.get('type')=='session_meta' and (tid:=meta['payload']['id']).startswith(thread_id): found.setdefault(tid, path)
+    return uniq_path(found.values(), thread_id)
 
 # %% ../nbs/04_oai.ipynb #e83e0de0
 def load_recs(path):
@@ -423,6 +428,10 @@ def dlg2items(
     return L([*out,*raws.get(t,[])])
 
 # %% ../nbs/04_oai.ipynb #7b73e471
+def _ctx_item(o):
+    "Is `o` retained as raw context during dialog conversion?"
+    return o.get('type') in ('compaction','additional_tools','agent_message') or (o.get('type')=='message' and o.get('role') not in ('user','assistant'))
+
 def _output_text(output):
     if isinstance(output,str): return output
     return '\n'.join(x.get('text','') for x in output if x.get('type') in ('input_text','output_text'))
@@ -437,6 +446,7 @@ def _msg_parts(content):
 
 def items2chat(
     items, # Responses API items
+    agent_results=False, # Include plaintext agent reports as canonical tool results?
 ):
     "Canonical fastllm messages for editable conversation items"
     msgs,names,customs = [],{},set()
@@ -446,8 +456,14 @@ def items2chat(
     for o in map(obj2dict,items):
         typ = o['type']
         meta = {'created': o['timestamp']} if o.get('timestamp') else None
+        if typ=='agent_message' and agent_results:
+            if any(c['type']=='encrypted_content' for c in o['content']): continue
+            text = _output_text(o['content'])
+            if text.startswith('Message Type:'): text = text.split('\nPayload:\n', 1)[-1]
+            if text: add(tool_result(f"{o['author']}: {text}", 'Agent'))
+            continue
+        if _ctx_item(o): continue
         if typ=='message':
-            if o['role'] not in ('user','assistant'): continue
             add(Msg(role=o['role'],content=_msg_parts(o['content'])))
         elif typ in ('function_call','custom_tool_call'):
             if typ=='custom_tool_call':
@@ -466,10 +482,9 @@ def items2chat(
             add(Msg(role='assistant',content=[ToolUse(id=cid,name='web_search',arguments=o.get('action') or {})]))
             add(Msg(role='tool',content=[ToolResult(id=cid,name='web_search',text=f"server tool {o.get('status','completed')}",
                 raw=dict(custom=False))]))
-        elif typ in ('reasoning','compaction','ghost_snapshot','tool_search_call','tool_search_output'): continue
+        elif typ in ('reasoning','ghost_snapshot','tool_search_call','tool_search_output'): continue
         else: raise ValueError(f'unsupported response item: {typ}')
     return msgs
-
 
 # %% ../nbs/04_oai.ipynb #44125d1f
 def items2dlg(
@@ -484,7 +499,7 @@ def items2dlg(
     raws,t = {},-1
     for o in items:
         if o['type']=='message' and o.get('role')=='user': t += 1
-        elif o['type']=='compaction' or (o['type']=='message' and o.get('role') not in ('user','assistant')):
+        elif _ctx_item(o):
             raws.setdefault(t,[]).append(o)
     for t,group in reversed(list(raws.items())):
         before = prompts[t+1] if t+1<len(prompts) else None
@@ -519,26 +534,41 @@ def resolve_thread(
 # %% ../nbs/04_oai.ipynb #68b28ed9
 def _ts(): return datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00','Z')
 
-def _ctx_item(o):
-    "Is `o` context the compact DSL can't express: a non-conversation message, or a compaction item?"
-    return o.get('type')=='compaction' or (o.get('type')=='message' and o.get('role') not in ('user','assistant'))
+def _compaction_recs(path, codex_home, end_bytes=-1):
+    "Recorded turns for compaction, including the inherited prefixes of paginated rollouts"
+    with path.open('rb') as f: recs = L(dict2obj(json.loads(line)) for line in f.read(end_bytes).splitlines())
+    if base := recs[0].payload.get('history_base'):
+        paths = (p for subdir in ('sessions','archived_sessions')
+            for p in (Path(codex_home)/subdir).rglob(f"*{base.thread_id}.jsonl"))
+        parent = uniq_path(paths, base.thread_id)
+        if not parent: raise FileNotFoundError(f'No rollout for history base {base.thread_id}')
+        return _compaction_recs(parent, codex_home, base.end_byte_offset) + recs
+    return recs
 
-def _split_synthetic(items):
-    "Items to carry forward, and the DSL body of a trailing synthetic summary"
-    o = items[-1] if items else {}
-    if o.get('type')=='message' and '\n\n## Conversation\n\n' in (t := _output_text(o.get('content',''))):
-        return L(items[:-1]),compact_body(t)
-    return L(items),''
+def _compact_ctx(o):
+    return _ctx_item(o) and o['type'] not in ('compaction','agent_message')
+
+def _split_synthetic(recs):
+    "Context, immutable DSL body, and response items not yet synthetically compacted"
+    for i in range(len(recs)-1,-1,-1):
+        r = recs[i]
+        if r.get('type')!='compacted': continue
+        items = r.payload.replacement_history
+        o = items[-1] if items else {}
+        if o.get('type')!='message' or o.get('role')!='user': continue
+        t = _output_text(o.get('content',''))
+        if '\n\n## Conversation\n\n' in t and all(_compact_ctx(o) for o in items[:-1]):
+            return L(obj2dict(o) for o in items[:-1]),compact_body(t),response_items(recs[i+1:])
+    return L(),'',response_items(recs)
 
 # %% ../nbs/04_oai.ipynb #27e47c0d
 def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, enc=None):
     "Prepare an incremental synthetic compaction without writing it"
     tid,path = resolve_thread(ref, codex_home)
-    recs = load_recs(path)
-    prior,new = split_compaction(recs)
-    keep,prior_body = _split_synthetic(prior)
-    msgs = items2chat(new)
-    if not msgs: raise ValueError(f'No new items to compact in {tid}')
+    recs = _compaction_recs(path, codex_home)
+    keep,prior_body,new = _split_synthetic(recs)
+    msgs = items2chat(new, agent_results=True)
+    if not msgs and not prior_body: raise ValueError(f'No items to compact in {tid}')
     new_chat = compact_chat(msgs, enc=enc, last_n=5, **policy)
     new_full = compact_chat(msgs, enc=enc, **{k:10**9 for k in policy})
     chat,full = join_compacts(prior_body,new_chat),join_compacts(prior_body,new_full)
@@ -546,7 +576,8 @@ def prepare_compaction(ref=None, codex_home=CODEX_HOME, policy=compact_policy, e
     comps = [r.payload for r in recs if r.get('type')=='compacted']
     prev = comps[-1].get('window_id') if comps else nested_idx(recs[0], 'payload', 'context_window', 'window_id')
     first = comps[0].get('first_window_id') if comps else prev
-    payload = dict(message='', replacement_history=list(keep + L(new).filter(_ctx_item) + [codex_msg('user', content)]),
+    ctx = keep + L(new).filter(_compact_ctx)
+    payload = dict(message='', replacement_history=ctx + [codex_msg('user', content)],
         window_number=len(comps)+1, first_window_id=first, previous_window_id=prev, window_id=str(uuid.uuid4()))
     rec = dict(timestamp=_ts(), type='compacted', payload=payload)
     if (o := recs[-1].get('ordinal')) is not None: rec['ordinal'] = o+1
