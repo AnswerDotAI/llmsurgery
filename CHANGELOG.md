@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.0.19
+
+### New Features
+
+- Compaction follows paginated rollouts, folds agent reports into the document, keeps full results untruncated, and resolves rollouts by session id ([#44](https://github.com/AnswerDotAI/llmsurgery/issues/44))
+- Compact agent reports and task notifications with a 2x assistant budget, drop stop-hook feedback, and keep agent envelopes out of `last_n` ([#43](https://github.com/AnswerDotAI/llmsurgery/issues/43))
+
+
 ## 0.0.18
 
 ### New Features
