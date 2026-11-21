@@ -110,12 +110,16 @@ def generic_call(name, args, max_toks, enc=None):
     return trunctoks_mid(f'▶ {name}({vals})', max_toks, enc)
 
 # %% ../nbs/02_compact.ipynb #cef7d16f
-call_renderers = dict(mcp__clikernel__exec=(fenced_code,'code'), mcp__clikernel__py=(fenced_code,'code'), mcp__clikernel__execute=(fenced_code,'code'), py=(fenced_code,'code'), Bash=(bash_call,'command'), bash=(bash_call,'cmd'))
+call_renderers = dict(mcp__clikernel__exec=(fenced_code,'code'), mcp__clikernel__py=(fenced_code,'code'),
+    mcp__clikernel__execute=(fenced_code,'code'), py=(fenced_code,'code'),
+    Bash=(bash_call,'command'), bash=(bash_call,'cmd'), run_command=(bash_call,'CommandLine'))
+_re_plugin_mcp = re.compile(r'^mcp__[^/]+?_clikernel__')
 
 def compact_call(p, max_toks, enc=None):
     "Render a tool-use part within `max_toks`, dispatching on `call_renderers`."
     name, args = p.name, p.arguments
-    if r := call_renderers.get(name.removeprefix('tools.')): return r[0](args.get(r[1], ''), max_toks, enc)
+    key = _re_plugin_mcp.sub('mcp__clikernel__', name.removeprefix('tools.'))
+    if r := call_renderers.get(key): return r[0](args.get(r[1], ''), max_toks, enc)
     return generic_call(name, args, max_toks, enc)
 
 # %% ../nbs/02_compact.ipynb #d5c7af9a
@@ -131,12 +135,18 @@ def _skill_text(text):
 
 _re_agent = re.compile(
     r'\s*(?:<task-notification>(?P<task>.*?)</task-notification>'
-    r'|Another Claude session sent a message:\s*<agent-message\b[^>]*>(?P<message>.*?)</agent-message>)\s*', re.DOTALL)
+    r'|Another Claude session sent a message:\s*<agent-message\b[^>]*>(?P<message>.*?)</agent-message>'
+    r'|\[Message\]\s+timestamp=\S+\s+sender=(?P<agy_sender>\S+)\s+priority=\S+\s+content=(?P<agy_body>.*))\s*', re.DOTALL)
 
 def _agent_text(text):
     "Extract agent prose or task status from a standalone host envelope; None means ordinary text"
     if not (m := _re_agent.fullmatch(text)): return None
     if m['message'] is not None: return f"Agent: {m['message'].strip()}"
+    if m['agy_sender'] is not None:
+        if m['agy_sender'] == 'system': return ''
+        body = m['agy_body'].strip()
+        label = 'Task' if '/task-' in m['agy_sender'] else 'Agent'
+        return f'{label}: {body}' if body else ''
     fields = dict(re.findall(r'<(summary|status|event|result)>(.*?)</\1>', m['task'], flags=re.DOTALL))
     summary,event = fields.get('summary', ''),fields.get('event', '')
     if summary.startswith('Monitor event:') and (event=='ping' or event.startswith('[Monitor expired after')): return ''
@@ -175,7 +185,7 @@ def compact_asst(m, text_toks, call_toks, enc=None):
 def compact_tool(m, max_toks, enc=None, asst_toks=None):
     "Render tool results, giving agent reports twice the assistant prose budget"
     atoks = 2*(compact_policy['asst_toks'] if asst_toks is None else asst_toks)
-    return '\n'.join(compact_result(p.text, atoks if p.name=='Agent' else max_toks, enc, full=p.full)
+    return '\n'.join(compact_result(p.text, atoks if p.name in ('Agent','invoke_subagent') else max_toks, enc, full=p.full)
         for p in m.content if isinstance(p, ToolResult))
 
 def compact_msg(m, user_toks, asst_toks, call_toks, result_toks, enc=None):
@@ -215,6 +225,7 @@ compact_policy = dict(user_toks=2000, asst_toks=150, call_toks=60, result_toks=3
 
 # %% ../nbs/02_compact.ipynb #5005ee37
 _re_skill = re.compile(r"▶ Skill\(skill='([^']+)'")
+_re_skill_file = re.compile(r"▶ read_file\(Path='([^']+/SKILL\.md)'")
 
 def compact_content(chat, path, notes=''):
     "Wrap compact conversation text as a continuation document."
@@ -224,6 +235,8 @@ def compact_content(chat, path, notes=''):
     res += f'\n\nIf further detail is needed, read the complete transcript at: {path}'
     if skills := L(_re_skill.findall(chat)).unique():
         res += '\n\nSkill contents were compacted out above. Before relying on any skill guidance, re-invoke it: ' + ', '.join(f'Skill({s})' for s in skills) + '.'
+    if skill_files := L(_re_skill_file.findall(chat)).unique():
+        res += '\n\nSkill files were compacted out above. Before relying on any skill guidance, re-read: ' + ', '.join(skill_files) + '.'
     return res
 
 # %% ../nbs/02_compact.ipynb #01c63a09

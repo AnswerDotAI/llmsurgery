@@ -1,5 +1,5 @@
 # NB: this file is designed for an LLM reader, not a human. Add it to your LLM's context and ask it to explain.
-"""Read and work with Claude Code and Codex session transcripts.
+"""Read and work with Claude Code, Codex, and Antigravity session transcripts.
 
 notation: /why
 
@@ -7,7 +7,7 @@ notation: /why
 
 # Every conversation: the mirror
 
-- ipynb copy of every Claude session and Codex thread on this machine, synced automatically    /earlier discussions, decisions, work lost to compaction
+- ipynb copy of every Claude session, Codex thread, and Antigravity conversation on this machine, synced automatically    /earlier discussions, decisions, work lost to compaction
 
 ```python
 from llmsurgery.mirror import index
@@ -20,24 +20,24 @@ nbrg(pat, index().root)
 
 # One session
 
-- `d = sess_dlg(ref)`: Claude session or Codex thread (ID or unique prefix) → in-memory dialog, in a few seconds; each user turn → prompt message, its reply → that message's output
+- `d = sess_dlg(ref)`: Claude session, Codex thread, or Antigravity conversation (ID or unique prefix) → in-memory dialog, in a few seconds; each user turn → prompt message, its reply → that message's output
 - read: `d.find_msgs(pat)`; `d.msg(id).view()`; `d.view(ids=...)`; `len(d.messages)` before `d.summary()`    /long session: thousands of messages
 - dlgskill file functions need an ipynb path: shell command `sess2nb` saves the session as one
-- `doc(llmsurgery.sess)`: finding a session on either host; what `sess_dlg` drops; when per-host `sess2dlg` or `thread2dlg` fits better
+- `doc(llmsurgery.sess)`: finding a session on any host; what `sess_dlg` drops; when per-host `sess2dlg`, `thread2dlg`, or `conv2dlg` fits better
 
 # Changing transcripts
 
-| |Claude Code|Codex
--|-|-
-load|`load_sess`|`load_recs`
-search|`sess_search`|`item_search`
-read slice|`show_recs`|`show_items`
+| |Claude Code|Codex|Antigravity
+-|-|-|-
+load|`load_sess`|`load_recs`|`load_conv`
+search|`sess_search`|`item_search`|`step_search`
+read slice|`show_recs`|`show_items`|`show_steps`
 
-- search hits carry the full record or item; before changing: read module and function docs, inspect target records
+- search hits carry the full record, item, or step; before changing: read module and function docs, inspect target records
 
 # Other modules
 
-- `doc(llmsurgery.ant)`: Claude Code JSONL sessions, prompt history; `doc(llmsurgery.oai)`: Codex rollout files; both: where transcripts live, finding and searching them, which operations write files
+- `doc(llmsurgery.ant)`: Claude Code JSONL sessions, prompt history; `doc(llmsurgery.oai)`: Codex rollout files; `doc(llmsurgery.agy)`: Antigravity SQLite conversations; all three: where transcripts live, finding and searching them, which operations write files
 - `doc(llmsurgery.compact)`: compact conversation documents, transcript compaction
 - `doc(aihist.hist)`: dialogs ↔ chat histories, replies
 """

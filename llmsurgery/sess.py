@@ -1,8 +1,8 @@
-"""Find and read a session from either host
+"""Find, read, and compact a session from any supported host
 
-Have a session id but don't know which host it belongs to? `find_sess` searches Claude Code and Codex transcripts. It returns the host and path. A unique id prefix works too. Without a ref, it tries the current Codex thread id, then Claude's current session. No match raises `FileNotFoundError`; a match on both hosts raises `ValueError`.
+Have a session id but don't know which host it belongs to? `find_sess` searches Claude Code, Codex, and Antigravity transcripts. It returns the host and path. A unique id prefix works too. Without a ref, it tries the current Antigravity conversation id, then Codex's current thread, then Claude's current session. No match raises `FileNotFoundError`; a match on more than one host raises `ValueError`.
 
-`sess_dlg` opens the result as an aidialog dialog; the `sess2nb` command saves that dialog to a notebook. Use these functions to read a conversation, not to reproduce the host's complete transcript. They remove bookkeeping and recognize some injected user turns, such as skill instructions. By default they include recorded conversation from before compaction. `ant.sess2dlg` and `oai.thread2dlg` retain more host context for editing.
+`sess_dlg` opens the result as an aidialog dialog; the `sess2nb` command saves that dialog to a notebook. Use these functions to read a conversation, not to reproduce the host's complete transcript. They remove bookkeeping and recognize some injected user turns, such as skill instructions. By default they include recorded conversation from before compaction. `ant.sess2dlg`, `oai.thread2dlg`, and `agy.conv2dlg` retain more host context for editing.
 
 Both hosts append conversation records in time order. To read the full recorded conversation, we use `ant.conv_recs` for Claude and `oai.response_items` for Codex. This includes history that compaction later superseded.
 
@@ -14,7 +14,7 @@ We drop Claude compaction summaries rather than repeat the earlier conversation.
 
 Choose either a session id or `-r` for the newest session in the current directory. The usual reading options also apply: limit rendered tool strings with `mx`, keep only the post-compaction view with `Since_compact`, or remove tools with `strip_Tools`.
 
-`claudecompact` and `codexcompact` compact a session offline with the compact DSL, then resume it in its host. The compaction makes no model call. Each takes a session or thread id, or uses the project's newest. The host starts with the standing arguments from `launch_args`, then any flags the command doesn't recognize. Write forwarded values as `--flag=value`, so the parser can't mistake a value for the id.
+`claudecompact`, `codexcompact`, and `agycompact` compact a session offline with the compact DSL, then resume it in its host. The compaction makes no model call. Each takes a session, thread, or conversation id, or uses the project's newest. The host starts with the standing arguments from `launch_args`, then any flags the command doesn't recognize. Write forwarded values as `--flag=value`, so the parser can't mistake a value for the id.
 
 Docs: https://AnswerDotAI.github.io/llmsurgery/sess.html.md"""
 
@@ -22,7 +22,7 @@ Docs: https://AnswerDotAI.github.io/llmsurgery/sess.html.md"""
 
 # %% auto #0
 __all__ = ['injected_starts', 'find_sess', 'recent_sess', 'sess_chat', 'path_dlg', 'sess_dlg', 'sess2nb', 'launch_args',
-           'claudecompact', 'codexcompact']
+           'claudecompact', 'codexcompact', 'agycompact']
 
 # %% ../nbs/05_sess.ipynb #7ddfe77e
 from fastcore.script import call_parse, is_cli
@@ -32,36 +32,41 @@ import os, re, sys, tomllib
 from aidialog.msg_parts import Msg, Text, ToolUse
 from aihist.hist import chat2dlg
 from aidialog.ipynb import write_ipynb
-from . import ant, oai
+from . import ant, oai, agy
 
 # %% ../nbs/05_sess.ipynb #d2dde9ae
 def find_sess(
     ref=None, # Session id or unique id prefix; the current session if None
     cwd=None, # Project directory, for Claude sessions
     codex_home=None, # Codex home; `oai.CODEX_HOME` if None
+    agy_home=None, # Antigravity app data directory, list of directories, or None for CLI and desktop
 ):
-    "The host owning session `ref` and its transcript path: `('ant'|'oai', path)`"
-    if ref is None: ref = oai.cur_thread() or ant.cur_sess(cwd)
-    paths = dict(ant=ant.sess_file(ref,cwd), oai=oai.rollout_file(ref, codex_home or oai.CODEX_HOME))
+    "The host owning session `ref` and its transcript path: `('ant'|'oai'|'agy', path)`"
+    if ref is None: ref = agy.cur_conv() or oai.cur_thread() or ant.cur_sess(cwd)
+    paths = dict(ant=ant.sess_file(ref,cwd), oai=oai.rollout_file(ref, codex_home or oai.CODEX_HOME),
+        agy=agy.conv_file(ref, agy_home))
     found = {h:p for h,p in paths.items() if p and p.exists()}
-    if not found: raise FileNotFoundError(f'No Claude session or Codex thread for {ref!r}')
-    if len(found)>1: raise ValueError(f'{ref!r} names both a Claude session and a Codex thread')
+    if not found: raise FileNotFoundError(f'No Claude session, Codex thread, or Antigravity conversation for {ref!r}')
+    if len(found)>1: raise ValueError(f'{ref!r} matches more than one host: {list(found)}')
     return first(found.items())
 
 # %% ../nbs/05_sess.ipynb #7c4c392e
 def recent_sess(
     cwd=None, # Project directory; the current directory if None
     codex_home=None, # Codex home; `oai.CODEX_HOME` if None
+    agy_home=None, # Antigravity app data directory, list of directories, or None for CLI and desktop
 ):
-    "The host with the newest transcript for `cwd`, and its path: `('ant'|'oai', path)`"
+    "The host with the newest transcript for `cwd`, and its path: `('ant'|'oai'|'agy', path)`"
     cwd = cwd or '.'
     found = {}
     ap = max(ant.sess_dir(cwd).glob('*.jsonl'), key=os.path.getmtime, default=None)
     if ap: found['ant'] = ap
     try: found['oai'] = oai.project_thread(cwd, codex_home or oai.CODEX_HOME)[1]
     except FileNotFoundError: pass
-    if not found: raise FileNotFoundError(f'No Claude session or Codex thread for {Path(cwd).resolve()}')
-    return max(found.items(), key=lambda it: it[1].stat().st_mtime)
+    try: found['agy'] = agy.project_conv(cwd, agy_home)[1]
+    except FileNotFoundError: pass
+    if not found: raise FileNotFoundError(f'No Claude session, Codex thread, or Antigravity conversation for {Path(cwd).resolve()}')
+    return max(found.items(), key=lambda it: agy.db_mtime_ns(it[1]))
 
 # %% ../nbs/05_sess.ipynb #25d2c92c
 injected_starts = (
@@ -85,7 +90,7 @@ def _no_tools(msgs):
 
 # %% ../nbs/05_sess.ipynb #9f4cc9c1
 def sess_chat(
-    host, # `'ant'` for a Claude session, `'oai'` for a Codex thread
+    host, # `'ant'` for Claude, `'oai'` for Codex, `'agy'` for Antigravity
     path, # The transcript path, e.g. from `find_sess`
     since_compact=False, # Only the conversation since the last compaction?
 ):
@@ -100,12 +105,15 @@ def sess_chat(
                 uniq.append(r)
         recs = uniq
         return ant.recs2chat([r for r in recs if not (r.get('isCompactSummary') or r.get('llmsurgeryCompact'))])
+    if host=='agy':
+        steps = agy.load_steps(path)
+        return agy.steps2chat(agy.active_steps(steps) if since_compact else steps)
     recs = oai.load_recs(path)
     return oai.items2chat(oai.conv_items(oai.active_items(recs) if since_compact else oai.response_items(recs)))
 
 # %% ../nbs/05_sess.ipynb #378d7a67
 def path_dlg(
-    host, # `'ant'` for a Claude session, `'oai'` for a Codex thread
+    host, # `'ant'` for Claude, `'oai'` for Codex, `'agy'` for Antigravity
     path, # The transcript path, e.g. from `find_sess`
     name=None, # Dialog name; the transcript's stem if None
     mx=10, # Maximum characters per rendered tool input/output string; None disables truncation
@@ -125,13 +133,14 @@ def sess_dlg(
     ref=None, # Session id or unique id prefix; the current session if None
     cwd=None, # Project directory, for Claude sessions
     codex_home=None, # Codex home; `oai.CODEX_HOME` if None
+    agy_home=None, # Antigravity app data directory; `agy.AGY_HOME` if None
     name=None, # Dialog name; the transcript's id if None
     mx=10, # Maximum characters per rendered tool input/output string; None disables truncation
     since_compact=False, # Only the conversation since the last compaction?
     strip_tools=False, # Drop tool calls and their results entirely?
 ):
-    "The conversation of a Claude session or Codex thread as a dialog held in memory, ready to read or save. Search it with `find_msgs`. Read one message with `msg(id).view()`. Read `doc(aidialog.dlgskill)` before using any other dialog API."
-    host,path = find_sess(ref, cwd, codex_home)
+    "The conversation of a Claude session, Codex thread, or Antigravity conversation as a dialog held in memory, ready to read or save. Search it with `find_msgs`. Read one message with `msg(id).view()`. Read `doc(aidialog.dlgskill)` before using any other dialog API."
+    host,path = find_sess(ref, cwd, codex_home, agy_home)
     return path_dlg(host, path, name or str(ref or path.stem), mx=mx, since_compact=since_compact, strip_tools=strip_tools)
 
 # %% ../nbs/05_sess.ipynb #2505b915
@@ -144,7 +153,7 @@ def sess2nb(
     strip_Tools:bool=False, # Drop tool calls and their results entirely?
     Recent:bool=False, # Convert the newest session for the current directory instead?
 ):
-    "Write a Claude session or Codex thread to an ipynb dialog"
+    "Write a Claude session, Codex thread, or Antigravity conversation to an ipynb dialog"
     if (ref is None) != Recent: raise ValueError('pass exactly one of: a session ref, or -r for the newest')
     host,tpath = recent_sess() if Recent else find_sess(ref)
     dlg = path_dlg(host, tpath, ref, mx=mx, since_compact=Since_compact, strip_tools=strip_Tools)
@@ -156,7 +165,7 @@ def sess2nb(
 
 # %% ../nbs/05_sess.ipynb #93362f53
 def launch_args(
-    app, # 'claude' or 'codex': selects the `<app>_args` list
+    app, # 'claude', 'codex', or 'agy': selects the `<app>_args` list
 ):
     "Standing command-line arguments for `app` from `$XDG_CONFIG_HOME/llmsurgery/config.toml`, each `~`-expanded"
     p = xdg_config_home()/'llmsurgery'/'config.toml'
@@ -180,3 +189,11 @@ def codexcompact(
     tid,_ = oai.resolve_thread(ref) if ref else oai.project_thread()
     oai.compact_session(tid)
     os.execvp('codex', ['codex', 'resume', tid, *launch_args('codex'), *sys.argv[1:]])
+
+@call_parse(nested=True, pos=['ref'])
+def agycompact(
+    ref:str=None, # Conversation id, prefix, or title; the project's newest conversation if omitted
+):
+    "Compact an Antigravity conversation offline, then resume it with the standing `agy_args`"
+    cid = agy.compact_session(ref).cid
+    os.execvp('agy', ['agy', '--conversation', cid, *launch_args('agy'), *sys.argv[1:]])

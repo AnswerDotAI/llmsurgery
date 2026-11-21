@@ -1,6 +1,6 @@
-"""Convert Claude Code and Codex transcripts to dialog notebooks for searching, reading, and archiving conversations
+"""Convert Claude Code, Codex, and Antigravity transcripts to dialog notebooks for searching, reading, and archiving conversations
 
-Claude Code and Codex store conversations in different JSONL formats. `index` converts their transcripts to dialog notebooks under a shared root. Search those notebooks with `nbrg`. Read matches with `find_msgs`, `summary_dlg`, and `view_msg`.
+Claude Code, Codex, and Antigravity store conversations in different formats. `index` converts their transcripts to dialog notebooks under a shared root. Search those notebooks with `nbrg`. Read matches with `find_msgs`, `summary_dlg`, and `view_msg`.
 
 The mirror also serves as an archive. It retains notebooks after their source transcripts disappear. Its default location is `$XDG_STATE_HOME/llmsurgery/mirror`, outside the cache directories that cleanup tools can remove.
 
@@ -19,7 +19,7 @@ from fastcore.utils import *
 from fastcore.script import call_parse
 from fastcore.xdg import xdg_state_home
 from aidialog.ipynb import write_ipynb
-from . import ant, oai
+from . import ant, oai, agy
 from .sess import path_dlg
 
 # %% ../nbs/06_mirror.ipynb #3b730eb8
@@ -28,15 +28,19 @@ MIRROR = xdg_state_home()/'llmsurgery'/'mirror'
 def transcripts(
     ant_root=None, # Claude sessions store; `ant.SESSIONS` if None
     codex_home=None, # Codex home; `oai.CODEX_HOME` if None
+    agy_home=None, # Antigravity app data directory, list of directories, or None for CLI and desktop
 ):
-    "Every transcript in both hosts' stores, as `(host, store, path)` rows"
-    astore,ostore = Path(ant_root or ant.SESSIONS),Path(codex_home or oai.CODEX_HOME)/'sessions'
+    "Every transcript in all supported hosts' stores, as `(host, store, path)` rows"
+    astore = Path(ant_root or ant.SESSIONS)
+    ostore = Path(codex_home or oai.CODEX_HOME)/'sessions'
+    agys = L(('agy', h.parent, p) for h in agy.agy_homes(agy_home)
+        if (cdir := h/'conversations').exists() for p in sorted(cdir.glob('*.db')))
     return (L(('ant', astore, p) for p in sorted(astore.glob('*/*.jsonl')))
-        + L(('oai', ostore, p) for p in sorted(ostore.glob('*/*/*/*.jsonl'))))
+        + L(('oai', ostore, p) for p in sorted(ostore.glob('*/*/*/*.jsonl'))) + agys)
 
 # %% ../nbs/06_mirror.ipynb #4340d65d
 def mirror_path(
-    host, # `'ant'` or `'oai'`
+    host, # `'ant'`, `'oai'`, or `'agy'`
     store, # The store root `path` was found under
     path, # Transcript path
     root=None, # Mirror root; `MIRROR` if None
@@ -45,7 +49,7 @@ def mirror_path(
     return Path(root or MIRROR)/host/Path(path).relative_to(store).with_suffix('.ipynb')
 
 def mirror_sess(
-    host, # `'ant'` or `'oai'`
+    host, # `'ant'`, `'oai'`, or `'agy'`
     store, # The store root `path` was found under
     path, # Transcript path
     root=None, # Mirror root; `MIRROR` if None
@@ -57,7 +61,7 @@ def mirror_sess(
     write_ipynb(path_dlg(host, Path(path)), tmp)
     os.replace(tmp, dest)
     st = Path(path).stat()
-    os.utime(dest, ns=(st.st_atime_ns, st.st_mtime_ns))
+    os.utime(dest, ns=(st.st_atime_ns, agy.db_mtime_ns(path)))
     return dest
 
 # %% ../nbs/06_mirror.ipynb #5a370152
@@ -65,14 +69,15 @@ def index(
     root=None, # Mirror root; `MIRROR` if None
     ant_root=None, # Claude sessions store; `ant.SESSIONS` if None
     codex_home=None, # Codex home; `oai.CODEX_HOME` if None
+    agy_home=None, # Antigravity app data directory, list of directories, or None for CLI and desktop
     force=False, # Rebuild every mirror, e.g. after the conversion logic changes?
     verbose=False, # Print each rebuilt mirror?
 ):
-    "Sync the mirror with both hosts' stores: a stat-only mtime check skips unchanged transcripts, stale ones are rebuilt, orphans kept, failures collected; the result carries the mirror `root`"
+    "Sync the mirror with all supported hosts' stores: a stat-only mtime check skips unchanged transcripts, stale ones are rebuilt, orphans kept, failures collected; the result carries the mirror `root`"
     built,fresh,failed = L(),0,L()
-    for host,store,p in transcripts(ant_root, codex_home):
+    for host,store,p in transcripts(ant_root, codex_home, agy_home):
         d = mirror_path(host, store, p, root)
-        if not force and d.exists() and d.stat().st_mtime_ns == p.stat().st_mtime_ns:
+        if not force and d.exists() and d.stat().st_mtime_ns == agy.db_mtime_ns(p):
             fresh += 1
             continue
         try:
