@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.0.20
+
+### New Features
+
+- Add Antigravity conversation support with agy module, agycompact CLI, and sess, mirror, and compact integration ([#46](https://github.com/AnswerDotAI/llmsurgery/issues/46))
+- Return FullString from doc() so complete documentation is retained during compaction ([#45](https://github.com/AnswerDotAI/llmsurgery/issues/45))
+
+
 ## 0.0.19
 
 ### New Features
