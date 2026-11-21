@@ -9,4 +9,6 @@ Modules:
 - `llmsurgery.sess`: Find, read, and compact a session from any supported host
 - `llmsurgery.skill`: Read and work with Claude Code, Codex, and Antigravity session transcripts."""
 
-__version__ = "0.0.20"
+__version__ = "0.0.21"
+
+
