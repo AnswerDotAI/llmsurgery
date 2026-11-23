@@ -115,20 +115,27 @@ def agy_homes(
     if isinstance(agy_home, (str, Path)): return [Path(agy_home)]
     return [Path(h) for h in agy_home]
 
+def _wal_active(path):
+    try: return Path(f'{path}-wal').stat().st_size > 0
+    except FileNotFoundError: return False
+
 def db_mtime_ns(
     path, # Path to a transcript file or SQLite `.db`
 ):
-    "Modification time in nanoseconds, including an active SQLite `-wal` file when present"
+    "Modification time in nanoseconds, including a non-empty SQLite `-wal` file when present"
     p = Path(path)
     mt = p.stat().st_mtime_ns
-    wal = Path(f'{p}-wal')
-    return max(mt, wal.stat().st_mtime_ns) if wal.exists() else mt
+    try: st = Path(f'{p}-wal').stat()
+    except FileNotFoundError: return mt
+    return max(mt, st.st_mtime_ns) if st.st_size > 0 else mt
 
 def cur_conv():
     "The current Antigravity conversation id, when running inside Antigravity"
     return os.environ.get('ANTIGRAVITY_CONVERSATION_ID')
 
-def _ro_conn(path): return sqlite3.connect(f'file:{Path(path)}?mode=ro', uri=True)
+def _ro_conn(path):
+    q = 'mode=ro' if _wal_active(path) else 'mode=ro&immutable=1'
+    return sqlite3.connect(f'{Path(path).resolve().as_uri()}?{q}', uri=True)
 
 def _summary_rows(agy_home=None):
     rows = []
@@ -152,11 +159,14 @@ def _db_for_summary(row):
 
 # %% ../nbs/04b_agy.ipynb #de6e30da
 def conv_file(
-    conv_id, # Conversation UUID or unique id prefix
+    conv_id, # Conversation UUID, unique id prefix, or path to a `.db` file
     agy_home=None, # Antigravity app data directory, list of directories, or None for CLI and desktop
 ):
     "The conversation database for `conv_id`, if it exists"
     if not conv_id: return None
+    if isinstance(conv_id, Path) or '/' in conv_id:
+        p = Path(conv_id)
+        return p if p.is_file() else None
     found = {}
     for h in agy_homes(agy_home):
         cdir = h/'conversations'
@@ -167,21 +177,21 @@ def conv_file(
             if r.cid.startswith(conv_id) and (p := _db_for_summary(r)): found.setdefault(r.cid, p)
     return uniq_path(found.values(), conv_id)
 
-def _db_workspace(path):
+def _db_info(path):
     with _ro_conn(path) as con: row = con.execute("SELECT data FROM trajectory_metadata_blob WHERE id='main'").fetchone()
-    if not row or not row[0]: return ''
+    if not row or not row[0]: return '', ''
     fs = _pb_decode(row[0])
-    if uri := _pb_str(fs, 7): return uri
-    if ws := _pb_one(fs, 1): return _pb_str(_pb_decode(ws), 1)
-    return ''
+    uri = _pb_str(fs, 7) or (_pb_str(_pb_decode(ws), 1) if (ws := _pb_one(fs, 1)) else '')
+    return uri, _pb_str(fs, 5)
 
 def project_conv(
     cwd='.', # Project directory
     agy_home=None, # Antigravity app data directory, list of directories, or None for CLI and desktop
 ):
     "The newest top-level `(conv_id, db_path)` for `cwd`"
-    target, found = Path(cwd).resolve().as_uri(), {}
+    target, found, seen = Path(cwd).resolve().as_uri(), {}, set()
     for r in _summary_rows(agy_home):
+        seen.add(r.cid)
         if r.parent: continue
         try: uris = json.loads(r.workspace_uris) if r.workspace_uris else []
         except ValueError: uris = []
@@ -190,7 +200,9 @@ def project_conv(
         cdir = h/'conversations'
         if not cdir.exists(): continue
         for p in cdir.glob('*.db'):
-            if p.stem not in found and _db_workspace(p) == target: found[p.stem] = p
+            if p.stem in seen: continue
+            uri, parent = _db_info(p)
+            if not parent and uri == target: found[p.stem] = p
     if not found: raise FileNotFoundError(f'No Antigravity conversation for {Path(cwd).resolve()}')
     return max(found.items(), key=lambda it: db_mtime_ns(it[1]))
 
@@ -372,8 +384,8 @@ def prompt_hist(
         cdir = h/'conversations'
         if not cdir.exists(): continue
         for path in sorted(cdir.glob('*.db')):
-            ws_uri = _db_workspace(path)
-            if proj_uri and ws_uri != proj_uri: continue
+            ws_uri, parent = _db_info(path)
+            if parent or (proj_uri and ws_uri != proj_uri): continue
             cwd = str(_uri_path(ws_uri)) if ws_uri else ''
             for s in load_steps(path):
                 if s.step_type != STEP_USER or s.text.strip() in ('', '/compact'): continue
