@@ -44,6 +44,7 @@ version = {attr = "llmsurgery.__version__"}
 include = ["llmsurgery"]
 
 [tool.nbdev]
+to_meta = ["export"]
 allowed_metadata_keys = ['solveit']
 allowed_cell_metadata_keys = ['solveit_ai']
 

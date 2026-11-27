@@ -4,6 +4,7 @@ Modules:
 
 - `llmsurgery.agy`: Read, search, and compact Antigravity conversations
 - `llmsurgery.ant`: Read, search, and edit Claude Code sessions. Compact conversations and recover prompt history.
+- `llmsurgery.compact`: Compact conversation documents and transcripts within token budgets
 - `llmsurgery.mirror`: Convert Claude Code, Codex, and Antigravity transcripts to dialog notebooks for searching, reading, and archiving conversations
 - `llmsurgery.oai`: Read, write, and build Codex session rollouts
 - `llmsurgery.sess`: Find, read, and compact a session from any supported host

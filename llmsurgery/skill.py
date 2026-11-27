@@ -1,11 +1,10 @@
-# NB: this file is designed for an LLM reader, not a human. Add it to your LLM's context and ask it to explain.
-"""Read and work with Claude Code, Codex, and Antigravity session transcripts.
+r"""Read and work with Claude Code, Codex, and Antigravity session transcripts.
 
 notation: /why
 
 - read, search: dialog views, read-only functions by default; change: record-level tools; dialogs: `doc(aidialog.dlgskill)` first
 
-# Every conversation: the mirror
+### Every conversation: the mirror
 
 - ipynb copy of every Claude session, Codex thread, and Antigravity conversation on this machine, synced automatically    /earlier discussions, decisions, work lost to compaction
 
@@ -18,14 +17,14 @@ nbrg(pat, index().root)
 - hit = dialog notebook: pass its path as `dlg` to dlgskill file functions, e.g. `summary_dlg(path)`, `find_msgs(pat, path)`, `view_msg(id, path)`
 - `doc(llmsurgery.mirror)`: metadata keeping hits citable across reindexes; why the mirror doubles as an archive
 
-# One session
+### One session
 
 - `d = sess_dlg(ref)`: Claude session, Codex thread, or Antigravity conversation (ID or unique prefix) → in-memory dialog, in a few seconds; each user turn → prompt message, its reply → that message's output
 - read: `d.find_msgs(pat)`; `d.msg(id).view()`; `d.view(ids=...)`; `len(d.messages)` before `d.summary()`    /long session: thousands of messages
 - dlgskill file functions need an ipynb path: shell command `sess2nb` saves the session as one
 - `doc(llmsurgery.sess)`: finding a session on any host; what `sess_dlg` drops; when per-host `sess2dlg`, `thread2dlg`, or `conv2dlg` fits better
 
-# Changing transcripts
+### Changing transcripts
 
 | |Claude Code|Codex|Antigravity
 -|-|-|-
@@ -35,10 +34,9 @@ read slice|`show_recs`|`show_items`|`show_steps`
 
 - search hits carry the full record, item, or step; before changing: read module and function docs, inspect target records
 
-# Other modules
+### Other modules
 
-- `doc(llmsurgery.ant)`: Claude Code JSONL sessions, prompt history; `doc(llmsurgery.oai)`: Codex rollout files; `doc(llmsurgery.agy)`: Antigravity SQLite conversations; all three: where transcripts live, finding and searching them, which operations write files
-- `doc(llmsurgery.compact)`: compact conversation documents, transcript compaction
+- `ant`, `oai`, `agy`: where each host stores transcripts, finding/searching, and which operations write files
 - `doc(aihist.hist)`: dialogs ↔ chat histories, replies
 """
 
